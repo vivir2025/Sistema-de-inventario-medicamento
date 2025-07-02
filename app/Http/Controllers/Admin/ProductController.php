@@ -18,13 +18,27 @@ class ProductController extends Controller
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
-  public function index(Request $request)
+ public function index(Request $request)
 {
     $title = 'products';
+    $municipality = $request->get('municipality', 'all'); // Obtener filtro de municipio
+    
     if ($request->ajax()) {
-        $products = Product::with(['purchase.category', 'sales'])->latest();
+        $products = Product::with(['purchase.category', 'sales', 'inventoryAdjustments']);
+        
+        // Filtrar por municipio si se especifica
+        if ($municipality !== 'all') {
+            $products->where('municipality', $municipality);
+        }
+        
+        $products = $products->latest();
         
         return DataTables::of($products)
+
+
+                ->addColumn('batch_number', function($product) {
+                return $product->purchase->batch_number ?? 'N/A';
+            })
             ->addColumn('product', function($product) {
                 if (!$product->purchase) return 'N/A';
                 
@@ -35,6 +49,14 @@ class ProductController extends Controller
                 
                 return $product->purchase->product . ' ' . $image;
             })
+            ->addColumn('municipality', function($product) {
+                $badges = [
+                    'cajibio' => '<span class="badge badge-info">Cajibío</span>',
+                    'morales' => '<span class="badge badge-success">Morales</span>',
+                    'piendamo' => '<span class="badge badge-warning">Piendamó</span>'
+                ];
+                return $badges[$product->municipality] ?? $product->municipality;
+            })
             ->addColumn('category', function($product) {
                 return $product->purchase->category->name ?? 'N/A';
             })
@@ -44,9 +66,54 @@ class ProductController extends Controller
             ->addColumn('quantity', function($product) {
                 if (!$product->purchase) return 'N/A';
                 
-                // MISMA LÓGICA QUE EN SALESCONTROLLER - Cálculo dinámico del stock
+                // Obtener cantidad vendida
                 $already_sold = \App\Models\Sale::where('product_id', $product->id)->sum('quantity');
-                $available = $product->purchase->quantity - $already_sold;
+                
+                // Obtener transferencias recibidas
+                $transferred_in = \App\Models\InventoryAdjustment::where('product_id', $product->id)
+                    ->where('type', 'transfer_in')
+                    ->sum('quantity');
+                
+                // Verificar si este producto fue creado originalmente en este municipio
+                // Esto lo hacemos verificando si existe otro producto con la misma purchase_id 
+                // en un municipio diferente que tenga ventas o transferencias más antiguas
+                $isOriginalInThisMunicipality = true;
+                
+                if ($transferred_in > 0) {
+                    // Buscar si existe el mismo producto (misma purchase_id) en otros municipios
+                    $otherMunicipalityProducts = \App\Models\Product::where('purchase_id', $product->purchase_id)
+                        ->where('municipality', '!=', $product->municipality)
+                        ->get();
+                    
+                    if ($otherMunicipalityProducts->count() > 0) {
+                        // Verificar si alguno de los otros municipios tiene ventas más antiguas
+                        $firstSaleThisMunicipality = \App\Models\Sale::where('product_id', $product->id)
+                            ->orderBy('created_at', 'asc')
+                            ->first();
+                        
+                        foreach ($otherMunicipalityProducts as $otherProduct) {
+                            $firstSaleOtherMunicipality = \App\Models\Sale::where('product_id', $otherProduct->id)
+                                ->orderBy('created_at', 'asc')
+                                ->first();
+                            
+                            if ($firstSaleOtherMunicipality && 
+                                (!$firstSaleThisMunicipality || 
+                                 $firstSaleOtherMunicipality->created_at < $firstSaleThisMunicipality->created_at)) {
+                                $isOriginalInThisMunicipality = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                if ($isOriginalInThisMunicipality) {
+                    // Es producto original en este municipio: cantidad base + transferencias - vendidas
+                    $base_quantity = $product->purchase->quantity;
+                    $available = $base_quantity + $transferred_in - $already_sold;
+                } else {
+                    // Es producto transferido: solo transferencias - vendidas
+                    $available = $transferred_in - $already_sold;
+                }
                 
                 return '<span class="'.($available <= 0 ? 'text-danger' : ($available <= 1 ? 'text-warning' : 'text-success')).'">
                     '.$available.'
@@ -74,11 +141,13 @@ class ProductController extends Controller
                 
                 return $editBtn.' '.$deleteBtn;
             })
-            // ESTA ES LA PARTE CLAVE - Configurar la búsqueda
             ->filterColumn('product', function($query, $keyword) {
                 $query->whereHas('purchase', function($q) use ($keyword) {
                     $q->where('product', 'LIKE', "%{$keyword}%");
                 });
+            })
+            ->filterColumn('municipality', function($query, $keyword) {
+                $query->where('municipality', 'LIKE', "%{$keyword}%");
             })
             ->filterColumn('category', function($query, $keyword) {
                 $query->whereHas('purchase.category', function($q) use ($keyword) {
@@ -96,35 +165,38 @@ class ProductController extends Controller
                     $q->where('expiry_date', 'LIKE', "%{$keyword}%");
                 });
             })
-            // Configurar búsqueda global
             ->filter(function ($query) use ($request) {
                 if ($request->has('search') && !empty($request->search['value'])) {
                     $searchValue = $request->search['value'];
                     $query->where(function($q) use ($searchValue) {
-                        // Buscar en el nombre del producto
                         $q->whereHas('purchase', function($subQ) use ($searchValue) {
                             $subQ->where('product', 'LIKE', "%{$searchValue}%");
                         })
-                        // Buscar en la categoría
                         ->orWhereHas('purchase.category', function($subQ) use ($searchValue) {
                             $subQ->where('name', 'LIKE', "%{$searchValue}%");
                         })
-                        // Buscar en precio
+                        ->orWhere('municipality', 'LIKE', "%{$searchValue}%")
                         ->orWhere('price', 'LIKE', "%{$searchValue}%")
-                        // Buscar en descuento
                         ->orWhere('discount', 'LIKE', "%{$searchValue}%")
-                        // Buscar en fecha de vencimiento
                         ->orWhereHas('purchase', function($subQ) use ($searchValue) {
                             $subQ->where('expiry_date', 'LIKE', "%{$searchValue}%");
                         });
                     });
                 }
             })
-            ->rawColumns(['product', 'quantity', 'action'])
+            ->rawColumns(['product', 'municipality', 'quantity', 'action'])
             ->make(true);
     }
     
-    return view('admin.products.index', compact('title'));
+    // Obtener estadísticas por municipio
+    $stats = [
+        'cajibio' => Product::where('municipality', 'cajibio')->count(),
+        'morales' => Product::where('municipality', 'morales')->count(),
+        'piendamo' => Product::where('municipality', 'piendamo')->count(),
+        'total' => Product::count()
+    ];
+    
+    return view('admin.products.index', compact('title', 'municipality', 'stats'));
 }
     /**
      * Show the form for creating a new resource.
@@ -148,26 +220,31 @@ class ProductController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-    {
-        $this->validate($request,[
-            'product'=>'required|max:200',
-            'price'=>'required|min:1',
-            'discount'=>'nullable',
-            'description'=>'nullable|max:255',
-        ]);
-        $price = $request->price;
-        if($request->discount >0){
-           $price = $request->discount * $request->price;
-        }
-        Product::create([
-            'purchase_id'=>$request->product,
-            'price'=>$price,
-            'discount'=>$request->discount,
-            'description'=>$request->description,
-        ]);
-        $notification = notify("Product has been added");
-        return redirect()->route('products.index')->with($notification);
+{
+    $this->validate($request,[
+        'product'=>'required|max:200',
+        'municipality'=>'required|in:cajibio,morales,piendamo',
+        'price'=>'required|min:1',
+        'discount'=>'nullable',
+        'description'=>'nullable|max:255',
+    ]);
+    
+    $price = $request->price;
+    if($request->discount > 0){
+       $price = $request->price - ($request->discount * $request->price / 100);
     }
+    
+    Product::create([
+        'purchase_id'=>$request->product,
+        'municipality'=>$request->municipality,
+        'price'=>$price,
+        'discount'=>$request->discount,
+        'description'=>$request->description,
+    ]);
+    
+    $notification = notify("Product has been added");
+    return redirect()->route('products.index')->with($notification);
+}
 
     
     /**
@@ -221,9 +298,10 @@ class ProductController extends Controller
      * @param  \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
- public function expired(Request $request)
+public function expired(Request $request)
 {
     $title = "expired Products";
+    $municipality = $request->get('municipality', 'all');
     
     if($request->ajax()){
         try {
@@ -231,9 +309,18 @@ class ProductController extends Controller
             $purchases = Purchase::whereNotNull('expiry_date')
                 ->where('expiry_date', '<', now()) // Solo fechas pasadas
                 ->with(['category', 'supplier'])
+                ->whereHas('products', function($query) use ($municipality) {
+                    if ($municipality !== 'all') {
+                        $query->where('municipality', $municipality);
+                    }
+                })
                 ->get();
             
             return DataTables::of($purchases)
+
+            ->addColumn('batch_number', function($purchase) {
+                return $purchase->batch_number ?? 'N/A';
+            })
                 ->addColumn('product', function($purchase) {
                     $image = '';
                     if(!empty($purchase->image)) {
@@ -242,6 +329,17 @@ class ProductController extends Controller
                             </span>';
                     }
                     return ($purchase->product ?? 'Sin nombre') . ' ' . $image;
+                })
+                ->addColumn('municipality', function($purchase) {
+                    $product = \App\Models\Product::where('purchase_id', $purchase->id)->first();
+                    if (!$product) return 'N/A';
+                    
+                    $badges = [
+                        'cajibio' => '<span class="badge badge-info">Cajibío</span>',
+                        'morales' => '<span class="badge badge-success">Morales</span>',
+                        'piendamo' => '<span class="badge badge-warning">Piendamó</span>'
+                    ];
+                    return $badges[$product->municipality] ?? $product->municipality;
                 })
                 ->addColumn('category', function($purchase) {
                     return $purchase->category ? $purchase->category->name : 'Sin categoría';
@@ -281,17 +379,7 @@ class ProductController extends Controller
                     }
                     return 'Sin fecha';
                 })
-                ->addColumn('action', function ($purchase) {
-                    $product = \App\Models\Product::where('purchase_id', $purchase->id)->first();
-                    $productId = $product ? $product->id : $purchase->id;
-                    
-                    $editbtn = '<a href="'.route("products.edit", $productId).'" class="editbtn"><button class="btn btn-primary btn-sm"><i class="fas fa-edit"></i></button></a>';
-                    $deletebtn = '<a data-id="'.$productId.'" data-route="'.route('products.destroy', $productId).'" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></a>';
-                    
-                    $btn = $editbtn . ' ' . $deletebtn;
-                    return $btn;
-                })
-                ->rawColumns(['product', 'quantity', 'action'])
+                ->rawColumns(['product', 'municipality', 'quantity'])
                 ->make(true);
                 
         } catch(\Exception $e) {
@@ -302,96 +390,156 @@ class ProductController extends Controller
         }
     }
     
-    return view('admin.products.expired', compact('title'));
+    // Estadísticas por municipio para productos vencidos
+    $expiredStats = [];
+    
+    $municipalities = ['cajibio', 'morales', 'piendamo'];
+    
+    foreach ($municipalities as $mun) {
+        $expiredStats[$mun] = Purchase::whereNotNull('expiry_date')
+            ->where('expiry_date', '<', now())
+            ->whereHas('products', function($query) use ($mun) {
+                $query->where('municipality', $mun);
+            })
+            ->count();
+    }
+    
+    // Total de productos vencidos
+    $expiredStats['total'] = Purchase::whereNotNull('expiry_date')
+        ->where('expiry_date', '<', now())
+        ->whereHas('products')
+        ->count();
+    
+    return view('admin.products.expired', compact('title', 'municipality', 'expiredStats'));
 }
-
 /**
  * Display a listing of out of stock resources.
  *
  * @param  \Illuminate\Http\Request $request
  * @return \Illuminate\Http\Response
  */
-public function outstock(Request $request)
-{
+public function outstock(Request $request) {     
     $title = "outstocked Products";
+    $municipality = $request->get('municipality', 'all');
     
     if($request->ajax()){
-        // Obtener TODOS los productos para filtrar dinámicamente los que están sin stock
-        $products = Product::with(['purchase.category', 'purchase.supplier'])->get();
-        
-        // Filtrar productos que realmente están sin stock (stock dinámico <= 0)
-        $outOfStockProducts = $products->filter(function($product) {
-            if (!$product->purchase) return false;
+        try {
+            // Obtener TODOS los productos con sus compras y ventas
+            $products = Product::with(['purchase.category', 'sales'])
+                ->whereHas('purchase'); // Solo productos que tienen compra
             
-            $already_sold = \App\Models\Sale::where('product_id', $product->id)->sum('quantity');
-            $available = $product->purchase->quantity - $already_sold;
+            // Filtrar por municipio si se especifica
+            if ($municipality !== 'all') {
+                $products->where('municipality', $municipality);
+            }
             
-            return $available <= 0;
-        });
-        
-        return DataTables::of($outOfStockProducts)
-            ->addColumn('product', function($product) {
-                $image = '';
-                if(!empty($product->purchase)) {
-                    if(!empty($product->purchase->image)) {
-                        $image = '<span class="avatar avatar-sm mr-2">
-                            <img class="avatar-img" src="'.asset("storage/purchases/".$product->purchase->image).'" alt="image">
-                            </span>';
-                    }
+            // Obtener todos los productos
+            $allProducts = $products->get();
+            
+            // Filtrar manualmente los productos agotados
+            $outstockProducts = $allProducts->filter(function($product) {
+                if (!$product->purchase) return false;
+                
+                // Calcular stock disponible
+                $totalSold = $product->sales->sum('quantity');
+                $available = $product->purchase->quantity - $totalSold;
+                
+                // Solo productos con stock <= 0
+                return $available <= 0;
+            });
+            
+            return DataTables::of($outstockProducts)
+                ->addColumn('batch_number', function($product) {
+                    return $product->purchase->batch_number ?? 'N/A';
+                })
+                ->addColumn('product', function($product) {
+                    if (!$product->purchase) return 'N/A';
+                    
+                    $image = $product->purchase->image ? 
+                        '<span class="avatar avatar-sm mr-2">
+                            <img class="avatar-img" src="'.asset("storage/purchases/".$product->purchase->image).'">
+                        </span>' : '';
+                    
                     return $product->purchase->product . ' ' . $image;
-                }
-                return '';
-            })
-            ->addColumn('category', function($product) {
-                $category = null;
-                if(!empty($product->purchase->category)) {
-                    $category = $product->purchase->category->name;
-                }
-                return $category;
-            })
-            ->addColumn('price', function($product) {
-                return settings('app_currency','$') . ' ' . $product->price;
-            })
-            ->addColumn('quantity', function($product) {
-                // CÁLCULO DINÁMICO DE STOCK DISPONIBLE
-                if(!empty($product->purchase)) {
-                    $already_sold = \App\Models\Sale::where('product_id', $product->id)->sum('quantity');
-                    $available = $product->purchase->quantity - $already_sold;
+                })
+                ->addColumn('municipality', function($product) {
+                    $badges = [
+                        'cajibio' => '<span class="badge badge-info">Cajibío</span>',
+                        'morales' => '<span class="badge badge-success">Morales</span>',
+                        'piendamo' => '<span class="badge badge-warning">Piendamó</span>'
+                    ];
+                    return $badges[$product->municipality] ?? $product->municipality;
+                })
+                ->addColumn('category', function($product) {
+                    return $product->purchase->category->name ?? 'N/A';
+                })
+                ->addColumn('price', function($product) {
+                    return settings('app_currency','$') . ' ' . number_format($product->price, 2);
+                })
+                ->addColumn('quantity', function($product) {
+                    if (!$product->purchase) return 'N/A';
+                    
+                    // Cálculo del stock disponible usando la relación ya cargada
+                    $totalSold = $product->sales->sum('quantity');
+                    $available = $product->purchase->quantity - $totalSold;
                     
                     return '<span class="text-danger">
                         '.$available.'
                     </span>';
-                }
-                return '<span class="text-danger">0</span>';
-            })
-            ->addColumn('discount', function($product) {
-                return $product->discount ?? '0.00';
-            })
-            ->addColumn('expiry_date', function($product) {
-                if(!empty($product->purchase) && !empty($product->purchase->expiry_date)) {
-                    return date_format(date_create($product->purchase->expiry_date), 'd M, Y');
-                }
-                return '';
-            })
-            ->addColumn('action', function ($row) {
-                $editbtn = '<a href="'.route("products.edit", $row->id).'" class="editbtn"><button class="btn btn-primary"><i class="fas fa-edit"></i></button></a>';
-                $deletebtn = '<a data-id="'.$row->id.'" data-route="'.route('products.destroy', $row->id).'" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
+                })
+                ->addColumn('discount', function($product) {
+                    return $product->discount ? $product->discount.'%' : '0%';
+                })
+                ->addColumn('expiry_date', function($product) {
+                    if (!$product->purchase || !$product->purchase->expiry_date) return 'N/A';
+                    return date('d M, Y', strtotime($product->purchase->expiry_date));
+                })
+                ->filter(function ($query) use ($request) {
+                    // Nota: El filtro de búsqueda se aplica después del filtrado manual
+                    // Si necesitas búsqueda, tendrás que implementarla manualmente
+                })
+                ->rawColumns(['product', 'municipality', 'quantity'])
+                ->make(true);
                 
-                if (!auth()->user()->hasPermissionTo('edit-product')) {
-                    $editbtn = '';
-                }
-                if (!auth()->user()->hasPermissionTo('destroy-product')) {
-                    $deletebtn = '';
-                }
-                
-                $btn = $editbtn . ' ' . $deletebtn;
-                return $btn;
-            })
-            ->rawColumns(['product', 'quantity', 'action'])
-            ->make(true);
+        } catch (\Exception $e) {
+            \Log::error('Error in outstock: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
     
-    return view('admin.products.outstock', compact('title'));
+    // Estadísticas actualizadas para mostrar solo productos agotados
+    $outstockStats = [];
+    
+    // Calcular estadísticas por municipio solo para productos agotados
+    $municipalities = ['cajibio', 'morales', 'piendamo'];
+    
+    foreach ($municipalities as $mun) {
+        $products = Product::with(['purchase', 'sales'])
+            ->where('municipality', $mun)
+            ->whereHas('purchase')
+            ->get();
+            
+        $count = $products->filter(function($product) {
+            $totalSold = $product->sales->sum('quantity');
+            $available = $product->purchase->quantity - $totalSold;
+            return $available <= 0;
+        })->count();
+        
+        $outstockStats[$mun] = $count;
+    }
+    
+    // Total de productos agotados
+    $allProducts = Product::with(['purchase', 'sales'])
+        ->whereHas('purchase')
+        ->get();
+        
+    $outstockStats['total'] = $allProducts->filter(function($product) {
+        $totalSold = $product->sales->sum('quantity');
+        $available = $product->purchase->quantity - $totalSold;
+        return $available <= 0;
+    })->count();
+    
+    return view('admin.products.outstock', compact('title', 'municipality', 'outstockStats'));
 }
     /**
      * Remove the specified resource from storage.

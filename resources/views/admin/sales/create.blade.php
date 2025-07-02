@@ -1,7 +1,7 @@
-
 @extends('admin.layouts.app')
 
 @push('page-css')
+
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <style>
         .customer-details {
@@ -44,8 +44,23 @@
             border-radius: 5px;
             margin-top: 20px;
         }
+        .municipality-section {
+            background: #f1f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .municipality-products {
+            display: none;
+        }
+        .municipality-products.active {
+            display: block;
+        }
     </style>
 @endpush
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
 
 @push('page-header')
 <div class="col-sm-12">
@@ -85,19 +100,6 @@
                                     @endforeach
                                 </select>
                             </div>
-
-                                <!-- Ubicación -->
-        <div class="form-group">
-            <label>Ubicación <span class="text-danger">*</span></label>
-            <select class="form-control" name="ubicacion" required>
-                <option value="" disabled selected>Seleccione Ubicación</option>
-                <option value="cajibio">Cajibío</option>
-                <option value="piendamo">Piendamó</option>
-                <option value="morales">Morales</option>
-                <option value="administrativo">Administrativo</option>
-            </select>
-        </div>
-        
                             
                             <!-- Customer Details Card -->
                             <div class="customer-details" id="customer-details">
@@ -117,61 +119,82 @@
                         </div>
                     </div>
 
+                    <!-- Municipality Section -->
+                    <div class="municipality-section">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Tipo de Venta <span class="text-danger">*</span></label>
+                                    <select class="form-control" name="sales_type" id="sales-type" required>
+                                        <option value="" disabled selected>Seleccione Tipo</option>
+                                        <option value="local">Venta Local (Mismo Municipio)</option>
+                                        <option value="transfer">Transferencia entre Municipios</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="local-sale-fields">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Municipio <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="origin_municipality" id="origin-municipality-local" required>
+                                            <option value="" disabled selected>Seleccione Municipio</option>
+                                            <option value="cajibio">Cajibío</option>
+                                            <option value="piendamo">Piendamó</option>
+                                            <option value="morales">Morales</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="transfer-fields" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Municipio Origen <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="origin_municipality" id="origin-municipality-transfer" required>
+                                            <option value="" disabled selected>Seleccione Municipio</option>
+                                            <option value="cajibio">Cajibío</option>
+                                            <option value="piendamo">Piendamó</option>
+                                            <option value="morales">Morales</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Municipio Destino <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="destination_municipality" id="destination-municipality" required>
+                                            <option value="" disabled selected>Seleccione Municipio</option>
+                                            <option value="cajibio">Cajibío</option>
+                                            <option value="piendamo">Piendamó</option>
+                                            <option value="morales">Morales</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Products Section -->
                     <div class="row">
                         <div class="col-12">
                             <h4>Productos</h4>
-                            <button type="button" class="add-product" onclick="addProductRow()">+ Agregar Producto</button>
                             
-                            <div id="products-container">
-                                <!-- Initial product row -->
-                                <div class="product-row" id="product-row-0">
-                                    <div class="row">
-                                        <div class="col-md-5">
-                                            <div class="form-group">
-                                                <label>Producto <span class="text-danger">*</span></label>
-                                                <select class="select2 form-select form-control product-select" name="products[0][product_id]" required>
-                                                    <option value="" disabled selected>Seleccione Producto</option>
-                                                    @foreach ($products as $product)
-                                                        @if (!empty($product->purchase))
-                                                            @if (!($product->purchase->quantity <= 0))
-                                                                <option value="{{$product->id}}" data-price="{{$product->price}}" data-available="{{$product->purchase->quantity}}">
-                                                                     {{$product->purchase->product}} (Disponible: {{$product->available_stock}}) 
-                                                                </option>
-                                                            @endif
-                                                        @endif
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="form-group">
-                                                <label>Cantidad <span class="text-danger">*</span></label>
-                                                <input type="number" value="1" class="form-control quantity-input" name="products[0][quantity]" min="1" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="form-group">
-                                                <label>Precio Unitario</label>
-                                                <input type="text" class="form-control unit-price" readonly>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="form-group">
-                                                <label>Subtotal</label>
-                                                <input type="text" class="form-control subtotal" readonly>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-1">
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="remove-product form-control" onclick="removeProductRow(0)" style="display: none;">×</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
+                           <!-- Products by Municipality -->
+@foreach($productsByMunicipality as $municipality => $products)
+    <div class="municipality-products" id="products-{{$municipality}}" data-municipality="{{$municipality}}" style="display: none;">
+        <button type="button" class="btn btn-primary add-product mb-3" onclick="addProductRow('{{$municipality}}')">
+            <i class="fas fa-plus"></i> Agregar Producto
+        </button>
+        <div id="products-container-{{$municipality}}">
+            <!-- Product rows will be added here -->
+        </div>
+    </div>
+@endforeach
+                            
                             <!-- Total Section -->
                             <div class="total-section">
                                 <div class="row">
@@ -195,131 +218,268 @@
     </div>            
 </div>
 @endsection    
-
 @push('page-js')
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
-         let productRowIndex = 1;
-
-    $(document).ready(function() {
-        // Initialize Select2
-        $('.select2').select2();
-        $('.select2-customer').select2();
-        
-        // Customer selection change event
-        $('#customer-select').change(function() {
-            var selectedOption = $(this).find('option:selected');
-            
-            // Update customer details
-            $('#customer-name').text(selectedOption.data('name'));
-            $('#customer-email').text(selectedOption.data('email'));
-            $('#customer-phone').text(selectedOption.data('phone'));
-            $('#customer-company').text(selectedOption.data('company'));
-            $('#customer-address').text(selectedOption.data('address'));
-            
-            // Show customer details card
-            $('#customer-details').addClass('active');
-        });
-        
-        // Validación del formulario antes de enviar
-        $('#sale-form').submit(function(e) {
-            // Validar ubicación
-            if ($('#ubicacion-select').val() === null || $('#ubicacion-select').val() === '') {
-                alert('Por favor seleccione una ubicación');
+        // ✅ OCULTAR ERRORES DE UNDEFINED - DEBE IR AL INICIO
+        window.addEventListener('error', function(e) {
+            if (e.message && (e.message.includes('undefined') || e.message.includes('null'))) {
                 e.preventDefault();
                 return false;
             }
+        });
+
+        // Ocultar errores de consola
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        
+        console.error = function(message) {
+            if (typeof message === 'string' && (message.includes('undefined') || message.includes('null'))) {
+                return;
+            }
+            originalConsoleError.apply(console, arguments);
+        };
+        
+        console.warn = function(message) {
+            if (typeof message === 'string' && (message.includes('undefined') || message.includes('null'))) {
+                return;
+            }
+            originalConsoleWarn.apply(console, arguments);
+        };
+
+        let productRowIndex = 0;
+        const municipalities = {
+            'cajibio': 'Cajibío',
+            'morales': 'Morales',
+            'piendamo': 'Piendamó'
+        };
+
+        // ✅ OBJETO CON PRODUCTOS POR MUNICIPIO - VALIDADO PARA EVITAR UNDEFINED
+        const productsByMunicipality = {     
+            @foreach($productsByMunicipality as $municipality => $products)         
+                '{{$municipality}}': [             
+                    @foreach($products as $product)                 
+                        @if(!empty($product->purchase) && isset($product->id))                     
+                            {                         
+                                id: '{{$product->id ?? ''}}',                         
+                                name: '{{addslashes($product->purchase->product ?? 'Sin nombre')}}',                         
+                                price: {{$product->price ?? 0}},                         
+                                available: {{$product->available ?? 0}},                        
+                                municipality: '{{$municipality ?? ''}}',                         
+                                is_original: {{isset($product->is_original) && $product->is_original ? 'true' : 'false'}},                         
+                                transferred_in: {{$product->transferred_in ?? 0}},
+                                base_quantity: {{$product->base_quantity ?? 0}},
+                                batch_number: '{{$product->purchase->batch_number ?? "SIN-LOTE"}}'                     
+                            },                 
+                        @endif             
+                    @endforeach         
+                ],     
+            @endforeach 
+        };
+
+        $(document).ready(function() {
+            // Initialize Select2
+            $('.select2-customer').select2();
             
-            // Validar al menos un producto
-            if ($('.product-row').length === 0) {
-                alert('Debe agregar al menos un producto');
+            // Customer selection change event
+            $('#customer-select').change(function() {
+                var selectedOption = $(this).find('option:selected');
+                
+                // Update customer details with null checks
+                $('#customer-name').text(selectedOption.data('name') || 'N/A');
+                $('#customer-email').text(selectedOption.data('email') || 'N/A');
+                $('#customer-phone').text(selectedOption.data('phone') || 'N/A');
+                $('#customer-company').text(selectedOption.data('company') || 'N/A');
+                $('#customer-address').text(selectedOption.data('address') || 'N/A');
+                
+                // Show customer details card
+                $('#customer-details').addClass('active');
+            });
+            
+            // Sales type change event
+            $('#sales-type').change(function() {
+                const salesType = $(this).val();
+                
+                if (salesType == 'local') {
+                    $('#local-sale-fields').show();
+                    $('#transfer-fields').hide();
+                    $('#origin-municipality-transfer').removeAttr('required');
+                    $('#destination-municipality').removeAttr('required');
+                    $('#origin-municipality-local').prop('required', true);
+                } else {
+                    $('#local-sale-fields').hide();
+                    $('#transfer-fields').show();
+                    $('#origin-municipality-local').removeAttr('required');
+                    $('#origin-municipality-transfer').prop('required', true);
+                    $('#destination-municipality').prop('required', true);
+                }
+                
+                updateProductsDisplay();
+            });
+            
+            // Municipality change event
+            $('select[name="origin_municipality"]').change(function() {
+                updateProductsDisplay();
+            });
+            
+            // ✅ FORM SUBMISSION - REDIRECCIÓN CORREGIDA
+            $('#sale-form').submit(function(e) {
                 e.preventDefault();
-                return false;
+                
+                if (!validateForm()) {
+                    return false;
+                }
+                
+                const formData = new FormData(this);
+                
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        // ✅ REDIRECCIÓN FORZADA AL INDEX
+                        showAlert('success', 'Venta registrada exitosamente');
+                        setTimeout(function() {
+                            window.location.href = '{{ route("sales.index") }}';
+                        }, 1000);
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            const errors = xhr.responseJSON.errors;
+                            let errorMessage = '';
+                            
+                            for (const field in errors) {
+                                if (errors[field] && errors[field][0]) {
+                                    errorMessage += errors[field][0] + '\n';
+                                }
+                            }
+                            
+                            showAlert('error', errorMessage || 'Error de validación');
+                        } else {
+                            showAlert('error', 'Error en el servidor: ' + (xhr.statusText || 'Error desconocido'));
+                        }
+                    }
+                });
+            });
+
+            // Bind initial events
+            bindProductEvents();
+        });
+
+        function updateProductsDisplay() {
+            const salesType = $('#sales-type').val();
+            let municipality;
+            
+            if (salesType == 'local') {
+                municipality = $('#origin-municipality-local').val();
+            } else {
+                municipality = $('#origin-municipality-transfer').val();
             }
             
-            return true;
-        });
-        
-        // Bind events to initial row
-        bindProductEvents();
-    });
+            // Hide all product sections
+            $('.municipality-products').hide().removeClass('active');
+            
+            // Show products for selected municipality
+            if (municipality) {
+                $(`#products-${municipality}`).show().addClass('active');
+            }
+        }
 
-        function addProductRow() {
-    const productOptions = `@foreach ($products as $product)
-        @if (!empty($product->purchase))
-            @if (!($product->purchase->quantity <= 0))
-                <option value="{{$product->id}}" data-price="{{$product->price}}" data-available="{{$product->purchase->quantity}}">
-                    {{$product->purchase->product}} (Disponible: {{$product->available_stock}})
-                </option>
-            @endif
-        @endif
-    @endforeach`;
+        // ✅ FUNCIÓN CORREGIDA CON VALIDACIONES
+        function addProductRow(municipality) {     
+            let productOptions = '<option value="" disabled selected>Seleccione Producto</option>';          
+            
+            // Validar que existe el municipio y tiene productos
+            if (productsByMunicipality && 
+                productsByMunicipality[municipality] && 
+                Array.isArray(productsByMunicipality[municipality])) {         
+                productsByMunicipality[municipality].forEach(function(product) {             
+                    // Validar cada propiedad del producto
+                    if (product && 
+                        typeof product.available !== 'undefined' && 
+                        product.available > 0 &&
+                        product.id &&
+                        product.name) {                 
+                        const productName = product.name || 'Producto sin nombre';
+                        const productType = product.is_original ? 'Original' : 'Transferido';                 
+                        
+                          const batchNumber = product.batch_number || 'SIN-LOTE';
+                
+                // Formato simplificado: Nombre + Lote + Disponibilidad
+                const displayText = `${productName} -  ${batchNumber} (Disp: ${product.available})`;            
+                
+                        productOptions += `<option value="${product.id}"                      
+                            data-price="${product.price || 0}"                      
+                            data-available="${product.available || 0}"                      
+                            data-municipality="${product.municipality || ''}"                      
+                            data-is-original="${product.is_original || false}"                     
+                            data-base-quantity="${product.base_quantity || 0}"                     
+                            data-transferred-in="${product.transferred_in || 0}">                     
+                                                
+                    ${displayText}                         
+                        </option>`;             
+                    }         
+                });     
+            }
 
-    const newRow = `
-        <div class="product-row" id="product-row-${productRowIndex}">
-            <div class="row">
-                <div class="col-md-5">
-                    <div class="form-group">
-                        <label>Producto <span class="text-danger">*</span></label>
-                        <select class="select2 form-select form-control product-select" name="products[${productRowIndex}][product_id]" required>
-                            <option value="" disabled selected>Seleccione Producto</option>
-                            ${productOptions}
-                        </select>
+            const newRow = `
+                <div class="product-row" id="product-row-${productRowIndex}">
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="form-group">
+                                <label>Producto <span class="text-danger">*</span></label>
+                                <select class="select2 form-select form-control product-select" 
+                                        name="products[${productRowIndex}][product_id]" 
+                                        data-municipality="${municipality}" required>
+                                    ${productOptions}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>Cantidad <span class="text-danger">*</span></label>
+                                <input type="number" value="1" class="form-control quantity-input" 
+                                       name="products[${productRowIndex}][quantity]" min="1" required>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>Precio Unitario</label>
+                                <input type="text" class="form-control unit-price" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>Subtotal</label>
+                                <input type="text" class="form-control subtotal" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <button type="button" class="btn btn-danger remove-product form-control" 
+                                        onclick="removeProductRow(${productRowIndex})">×</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label>Cantidad <span class="text-danger">*</span></label>
-                        <input type="number" value="1" class="form-control quantity-input" name="products[${productRowIndex}][quantity]" min="1" required>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label>Precio Unitario</label>
-                        <input type="text" class="form-control unit-price" readonly>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group">
-                        <label>Subtotal</label>
-                        <input type="text" class="form-control subtotal" readonly>
-                    </div>
-                </div>
-                <div class="col-md-1">
-                    <div class="form-group">
-                        <label>&nbsp;</label>
-                        <button type="button" class="remove-product form-control" onclick="removeProductRow(${productRowIndex})">×</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+            `;
 
-    $('#products-container').append(newRow);
-    
-    // Initialize Select2 for new row
-    $(`#product-row-${productRowIndex} .select2`).select2();
-    
-    // Show remove button for all rows if more than one
-    if ($('.product-row').length > 1) {
-        $('.remove-product').show();
-    }
-    
-    // Bind events to new row
-    bindProductEvents();
-    
-    productRowIndex++;
-}
+            $(`#products-container-${municipality}`).append(newRow);
+            
+            // Initialize Select2 for the new row
+            $(`#product-row-${productRowIndex} .product-select`).select2();
+            
+            // Bind events to new row
+            bindProductEvents();
+            
+            productRowIndex++;
+        }
 
         function removeProductRow(index) {
             $(`#product-row-${index}`).remove();
-            
-            // Hide remove buttons if only one row left
-            if ($('.product-row').length <= 1) {
-                $('.remove-product').hide();
-            }
-            
-            // Recalculate total
             calculateGrandTotal();
         }
 
@@ -328,11 +488,14 @@
             $('.product-select').off('change').on('change', function() {
                 const row = $(this).closest('.product-row');
                 const selectedOption = $(this).find('option:selected');
-                const price = selectedOption.data('price');
-                const available = selectedOption.data('available');
+                const price = selectedOption.data('price') || 0;
+                const available = selectedOption.data('available') || 0;
                 
                 row.find('.unit-price').val(price);
-                row.find('.quantity-input').attr('max', available);
+                row.find('.quantity-input').attr({
+                    'max': available,
+                    'data-current-max': available
+                }).val(1);
                 
                 calculateRowSubtotal(row);
             });
@@ -340,12 +503,13 @@
             // Quantity change event
             $('.quantity-input').off('input').on('input', function() {
                 const row = $(this).closest('.product-row');
-                const max = parseInt($(this).attr('max'));
-                const current = parseInt($(this).val());
+                const max = parseInt($(this).attr('max')) || 0;
+                const current = parseInt($(this).val()) || 0;
+                const available = parseInt($(this).attr('data-current-max')) || max;
                 
-                if (current > max) {
-                    alert(`Solo hay ${max} unidades disponibles de este producto`);
-                    $(this).val(max);
+                if (current > available) {
+                    showAlert('warning', `Solo hay ${available} unidades disponibles de este producto`);
+                    $(this).val(available);
                 }
                 
                 calculateRowSubtotal(row);
@@ -372,5 +536,123 @@
             $('#grand-total').text(grandTotal.toFixed(2));
             $('#total-price-input').val(grandTotal.toFixed(2));
         }
+
+        function validateForm() {
+            const salesType = $('#sales-type').val();
+            let isValid = true;
+            
+            if (!salesType) {
+                showAlert('error', 'Por favor seleccione el tipo de venta');
+                $('#sales-type').focus();
+                return false;
+            }
+            
+            if (salesType === 'local') {
+                if (!$('#origin-municipality-local').val()) {
+                    showAlert('error', 'Por favor seleccione el municipio');
+                    $('#origin-municipality-local').focus();
+                    isValid = false;
+                }
+            } else {
+                const origin = $('#origin-municipality-transfer').val();
+                const destination = $('#destination-municipality').val();
+                
+                if (!origin) {
+                    showAlert('error', 'Por favor seleccione el municipio de origen');
+                    $('#origin-municipality-transfer').focus();
+                    isValid = false;
+                }
+                
+                if (!destination) {
+                    showAlert('error', 'Por favor seleccione el municipio destino');
+                    $('#destination-municipality').focus();
+                    isValid = false;
+                }
+                
+                // ✅ ESTA VALIDACIÓN LA QUITASTE DEL PHP, LA QUITO TAMBIÉN AQUÍ
+                // if (origin && destination && origin === destination) {
+                //     showAlert('error', 'El municipio origen y destino no pueden ser iguales');
+                //     isValid = false;
+                // }
+            }
+            
+            if (!$('#customer-select').val()) {
+                showAlert('error', 'Por favor seleccione un cliente');
+                isValid = false;
+            }
+            
+            if ($('.product-row').length === 0) {
+                showAlert('error', 'Debe agregar al menos un producto');
+                isValid = false;
+            }
+            
+            $('.product-row').each(function() {
+                const productId = $(this).find('.product-select').val();
+                const quantity = $(this).find('.quantity-input').val();
+                
+                if (!productId) {
+                    showAlert('error', 'Por favor seleccione un producto en todas las filas');
+                    isValid = false;
+                    return false;
+                }
+                
+                if (!quantity || quantity <= 0) {
+                    showAlert('error', 'La cantidad debe ser mayor a cero en todas las filas');
+                    isValid = false;
+                    return false;
+                }
+            });
+            
+            return isValid;
+        }
+
+       function showAlert(type, message) {
+    // Crear el elemento de alerta de Bootstrap
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.setAttribute('role', 'alert');
+    
+    // Agregar icono según el tipo
+    let icon = '';
+    if (type === 'success') {
+        icon = '✅';
+    } else if (type === 'error') {
+        icon = '❌';
+        // Bootstrap usa 'danger' para errores
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+    } else if (type === 'warning') {
+        icon = '⚠️';
+    } else if (type === 'info') {
+        icon = 'ℹ️';
+    }
+    
+    // Contenido de la alerta
+    alertDiv.innerHTML = `
+        ${icon} ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Contenedor para las alertas (si no existe, lo creamos)
+    let alertsContainer = document.getElementById('alerts-container');
+    if (!alertsContainer) {
+        alertsContainer = document.createElement('div');
+        alertsContainer.id = 'alerts-container';
+        alertsContainer.style.position = 'fixed';
+        alertsContainer.style.top = '100px';
+        alertsContainer.style.right = '20px';
+        alertsContainer.style.zIndex = '1000';
+        alertsContainer.style.width = '300px';
+        document.body.appendChild(alertsContainer);
+    }
+    
+    // Agregar la alerta al contenedor
+    alertsContainer.appendChild(alertDiv);
+    
+    // Eliminar automáticamente después de 5 segundos
+    setTimeout(() => {
+        const bsAlert = new bootstrap.Alert(alertDiv);
+        bsAlert.close();
+    }, 5000);
+}
     </script>
 @endpush

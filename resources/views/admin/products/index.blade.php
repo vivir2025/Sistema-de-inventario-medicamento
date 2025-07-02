@@ -5,23 +5,38 @@
 @push('page-css')
     <style>
         .expiry-green {
-            background-color: #d4edda !important; /* Verde claro */
+            background-color: #d4edda !important;
             color: #155724;
         }
         .expiry-orange {
-            background-color: #fff3cd !important; /* Naranja claro */
+            background-color: #fff3cd !important;
             color: #856404;
         }
         .expiry-red {
-            background-color: #f8d7da !important; /* Rojo claro */
+            background-color: #f8d7da !important;
             color: #721c24;
+        }
+        .municipality-filter {
+            margin-bottom: 20px;
+        }
+        .stats-card {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
     </style>
 @endpush
 
 @push('page-header')
 <div class="col-sm-7 col-auto">
-    <h3 class="page-title">Productos</h3>
+    <h3 class="page-title">
+        Productos
+        @if($municipality !== 'all')
+            - {{ ucfirst($municipality) }}
+        @endif
+    </h3>
     <ul class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{route('dashboard')}}">Inicio</a></li>
         <li class="breadcrumb-item active">Productos</li>
@@ -33,6 +48,60 @@
 @endpush
 
 @section('content')
+<!-- Estadísticas por municipio -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h4>{{$stats['cajibio']}}</h4>
+            <p class="mb-0">Cajibío</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center" style="background: linear-gradient(45deg, #28a745, #1e7e34);">
+            <h4>{{$stats['morales']}}</h4>
+            <p class="mb-0">Morales</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center" style="background: linear-gradient(45deg, #ffc107, #d39e00);">
+            <h4>{{$stats['piendamo']}}</h4>
+            <p class="mb-0">Piendamó</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center" style="background: linear-gradient(45deg, #6c757d, #495057);">
+            <h4>{{$stats['total']}}</h4>
+            <p class="mb-0">Total</p>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros por municipio -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="municipality-filter">
+            <div class="btn-group" role="group">
+                <a href="{{route('products.index')}}" 
+                   class="btn {{$municipality === 'all' ? 'btn-primary' : 'btn-outline-primary'}}">
+                    Todos
+                </a>
+                <a href="{{route('products.index', ['municipality' => 'cajibio'])}}" 
+                   class="btn {{$municipality === 'cajibio' ? 'btn-info' : 'btn-outline-info'}}">
+                    Cajibío
+                </a>
+                <a href="{{route('products.index', ['municipality' => 'morales'])}}" 
+                   class="btn {{$municipality === 'morales' ? 'btn-success' : 'btn-outline-success'}}">
+                    Morales
+                </a>
+                <a href="{{route('products.index', ['municipality' => 'piendamo'])}}" 
+                   class="btn {{$municipality === 'piendamo' ? 'btn-warning' : 'btn-outline-warning'}}">
+                    Piendamó
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-md-12">
         <!-- Productos -->
@@ -42,7 +111,9 @@
                     <table id="product-table" class="datatable table table-hover table-center mb-0">
                         <thead>
                             <tr>
+                                <th>Lote</th>
                                 <th>Nombre del Producto</th>
+                                <th>Municipio</th>
                                 <th>Categoría</th>
                                 <th>Precio</th>
                                 <th>Cantidad</th>
@@ -65,21 +136,40 @@
 
 @push('page-js')
 <script>
-   $(document).ready(function() {
+$(document).ready(function() {
     var table = $('#product-table').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
             url: "{{route('products.index')}}",
+            data: {
+                municipality: "{{$municipality}}"
+            },
             type: 'GET',
             error: function(xhr, error, code) {
                 console.log('Error:', xhr.responseText);
             }
         },
         columns: [
+
+              {
+        data: 'batch_number',
+        name: 'batch_number',
+        orderable: true,
+        searchable: true,
+        render: function(data, type, row) {
+            return data || 'N/A';
+        }
+    },
             {
                 data: 'product',
                 name: 'product',
+                orderable: true,
+                searchable: true
+            },
+            {
+                data: 'municipality',
+                name: 'municipality',
                 orderable: true,
                 searchable: true
             },
@@ -99,7 +189,7 @@
                 data: 'quantity',
                 name: 'quantity',
                 orderable: true,
-                searchable: false // No buscar en cantidad calculada
+                searchable: false
             },
             {
                 data: 'discount',
@@ -113,9 +203,7 @@
                 orderable: true,
                 searchable: true,
                 render: function(data, type) {
-                    // Solo aplicar colores en la visualización
                     if (type === 'display' && data && data !== 'N/A') {
-                        // Intentar extraer la fecha del texto formateado
                         var dateMatch = data.match(/\d{2} \w{3}, \d{4}/);
                         if (dateMatch) {
                             var dateStr = dateMatch[0];
@@ -161,14 +249,9 @@
             console.log('DataTable redrawn');
         }
     });
-    
-    // Debug para la búsqueda
-    $('#product-table_filter input').on('keyup', function() {
-        console.log('Search term:', this.value);
-    });
 });
 
-// Código para eliminar (sin cambios)
+// Código para eliminar
 $(document).on('click', '.delete-btn', function(e) {
     e.preventDefault();
     var id = $(this).data('id');

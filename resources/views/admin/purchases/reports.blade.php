@@ -35,6 +35,7 @@
         <th>Email P.</th>
         <th>Teléfono P.</th>
         <th>Medicamento</th>
+        <th>Lote</th>
         <th>Categoría</th>
         <th>Precio</th>
         <th>Cantidad</th>
@@ -69,6 +70,12 @@
                 {{$purchase->product}}
             </h2>
         </td>
+         <!-- Columna Lote -->
+                            <td>
+                                <span class="badge badge-info">
+                                    {{ $purchase->batch_number ?? 'Sin lote' }}
+                                </span>
+                            </td>
         
         <!-- Columna Categoría -->
         <td>{{$purchase->category->name}}</td>

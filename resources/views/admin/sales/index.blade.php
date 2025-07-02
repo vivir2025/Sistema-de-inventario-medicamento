@@ -1,4 +1,3 @@
-
 @extends('admin.layouts.app')
 
 <x-assets.datatables />
@@ -18,6 +17,9 @@
 }
 .products-column {
     max-width: 300px;
+}
+.municipality-column {
+    max-width: 200px;
 }
 .repair-section {
     background-color: #fff3cd;
@@ -57,8 +59,8 @@
             <thead>
                 <tr>
                     <th class="products-column">Productos</th>
+                    <th class="municipality-column">Municipio</th>
                     <th>Cliente</th>
-                    <th>Ubicación</th>
                     <th>Total de Ítems</th>
                     <th>Precio Total</th>
                     <th>Fecha</th>
@@ -87,16 +89,17 @@ $(document).ready(function() {
                 data: 'products', 
                 name: 'products', 
                 orderable: false, 
-                searchable: true // Cambiar a true para permitir búsqueda
+                searchable: true
+            },
+            {
+                data: 'municipality', 
+                name: 'municipality',
+                searchable: true,
+                orderable: false
             },
             {
                 data: 'customer', 
                 name: 'customer',
-                searchable: true
-            },
-            {
-                data: 'ubicacion', 
-                name: 'ubicacion',
                 searchable: true
             },
             {
@@ -107,12 +110,12 @@ $(document).ready(function() {
             {
                 data: 'total_price', 
                 name: 'total_price',
-                searchable: true // Permitir búsqueda por precio
+                searchable: true
             },
             {
                 data: 'date', 
                 name: 'date',
-                searchable: true // Permitir búsqueda por fecha
+                searchable: true
             },
             {
                 data: 'action', 
@@ -130,26 +133,21 @@ $(document).ready(function() {
             loadingRecords: "Cargando...",
             processing: "Procesando...",
             search: "Buscar:",
-            searchPlaceholder: "Buscar por cliente, producto, ubicación...",
+            searchPlaceholder: "Buscar por cliente, producto, municipio...",
             zeroRecords: "No se encontraron registros coincidentes"
         },
-        // Configuraciones adicionales para mejorar la búsqueda
-        searchDelay: 500, // Retraso de 500ms antes de buscar
-        pageLength: 25, // Mostrar más registros por página
+        searchDelay: 500,
+        pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
-        order: [[5, 'desc']], // Ordenar por fecha (columna 5) descendente por defecto
-        dom: 'Bfrtip', // Agregar botones si los necesitas
-        responsive: true, // Hacer la tabla responsive
+        order: [[5, 'desc']],
+        responsive: true,
         autoWidth: false,
-        // Configurar el comportamiento de búsqueda
         search: {
-            smart: true, // Búsqueda inteligente
-            regex: false, // No usar regex por defecto
-            caseInsensitive: true // Búsqueda insensible a mayúsculas
+            smart: true,
+            regex: false,
+            caseInsensitive: true
         }
     });
-
-
 
     // Usar delegación de eventos más específica
     $(document).on('click', 'button[id="deletebtn"]', function(e) {

@@ -19,7 +19,7 @@ class CreateSalesTable extends Migration
             $table->integer('quantity');
             $table->decimal('total_price');
             $table->foreignId('customer_id')->constrained()->onDelete('cascade');
-            $table->enum('ubicacion', ['cajibio', 'piendamo', 'morales', 'administrativo'])->default('cajibio');
+           
             $table->softDeletes();
             $table->timestamps();
         });

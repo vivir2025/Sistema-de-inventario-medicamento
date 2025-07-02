@@ -20,72 +20,152 @@ class PurchaseController extends Controller
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
-    public function index(Request $request)
-    {
-        $title = 'purchases';
-        if($request->ajax()){
-            $purchases = Purchase::get();
-            return DataTables::of($purchases)
-                ->addColumn('product',function($purchase){
-                    $image = '';
-                    if(!empty($purchase->image)){
-                        $image = '<span class="avatar avatar-sm mr-2">
-						<img class="avatar-img" src="'.asset("storage/purchases/".$purchase->image).'" alt="product">
-					    </span>';
-                    }                 
-                    return $purchase->product.' ' . $image;
-                })
-                ->addColumn('category',function($purchase){
-                    if(!empty($purchase->category)){
-                        return $purchase->category->name;
-                    }
-                })
-                ->addColumn('cost_price',function($purchase){
-                    return settings('app_currency','$'). ' '. $purchase->cost_price;
-                })
-               ->addColumn('quantity',function($purchase){
-    // Mostrar solo la cantidad comprada original
-    return $purchase->quantity;
-})
-                ->addColumn('supplier',function($purchase){
-                    return $purchase->supplier->name;
-                })
-                ->addColumn('expiry_date',function($purchase){
-                    return date_format(date_create($purchase->expiry_date),'d M, Y');
-                })
-                ->addColumn('action', function ($row) {
-                    $editbtn = '<a href="'.route("purchases.edit", $row->id).'" class="editbtn"><button class="btn btn-primary"><i class="fas fa-edit"></i></button></a>';
-                    $deletebtn = '<a data-id="'.$row->id.'" data-route="'.route('purchases.destroy', $row->id).'" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
-                    if (!auth()->user()->hasPermissionTo('edit-purchase')) {
-                        $editbtn = '';
-                    }
-                    if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
-                        $deletebtn = '';
-                    }
-                    $btn = $editbtn.' '.$deletebtn;
-                    return $btn;
-                })
-                ->rawColumns(['product','action','quantity'])
-                ->make(true);
+      public function index(Request $request)
+{
+    $title = 'purchases';
+    if($request->ajax()){
+        $query = Purchase::with(['category', 'supplier']);
+        
+        // Aplicar filtros
+        $filter = $request->get('filter', 'all');
+        switch($filter) {
+            case 'active':
+                $query->where('expiry_date', '>', now()->addDays(30));
+                break;
+            case 'near-expiry':
+                $query->nearExpiry(30);
+                break;
+            case 'expired':
+                $query->expired();
+                break;
         }
-        return view('admin.purchases.index',compact(
-            'title'
-        ));
+        
+        $purchases = $query->orderBy('expiry_date', 'asc')->get();
+        
+        return DataTables::of($purchases)
+            ->addColumn('batch_number', function($purchase){
+                $badge = '';
+                $badgeClass = 'badge-active';
+                
+                if ($purchase->isExpired()) {
+                    $badge = '<span class="badge badge-expired ml-1">Vencido</span>';
+                    $badgeClass = 'text-danger';
+                } elseif ($purchase->isNearExpiry()) {
+                    $badge = '<span class="badge badge-near-expiry ml-1">Por vencer</span>';
+                    $badgeClass = 'text-warning';
+                }
+                
+                return '<span class="batch-number ' . $badgeClass . '" data-toggle="tooltip" title="Click para ver detalles" style="cursor: pointer;">' 
+                       . $purchase->batch_number . '</span>' . $badge;
+            })
+            ->addColumn('product', function($purchase){
+                $image = '';
+                if(!empty($purchase->image)){
+                    $image = '<span class="avatar avatar-sm mr-2">
+                        <img class="avatar-img rounded" src="'.asset("storage/purchases/".$purchase->image).'" alt="product">
+                    </span>';
+                }                 
+                return '<div class="d-flex align-items-center">' . $image . $purchase->product . '</div>';
+            })
+            ->addColumn('category', function($purchase){
+                return $purchase->category ? 
+                    '<span class="badge badge-info">' . $purchase->category->name . '</span>' : 
+                    '<span class="text-muted">N/A</span>';
+            })
+            ->addColumn('cost_price', function($purchase){
+                return '<span class="font-weight-bold">' . settings('app_currency','$') . ' ' . number_format($purchase->cost_price, 2) . '</span>';
+            })
+            ->addColumn('quantity', function($purchase){
+                $available = $purchase->available_stock;
+                $total = $purchase->quantity;
+                
+                $class = 'stock-good';
+                $icon = 'fas fa-check-circle';
+                
+                if ($available == 0) {
+                    $class = 'stock-critical';
+                    $icon = 'fas fa-times-circle';
+                } elseif ($available <= ($total * 0.2)) {
+                    $class = 'stock-low';
+                    $icon = 'fas fa-exclamation-triangle';
+                }
+                
+                return '<div class="stock-info ' . $class . '">
+                            <i class="' . $icon . '"></i>
+                            <strong>' . $available . '</strong>/' . $total . '
+                            <br><small>(' . round(($available/$total)*100, 1) . '% disponible)</small>
+                        </div>';
+            })
+            ->addColumn('supplier', function($purchase){
+                return $purchase->supplier ? 
+                    '<span class="badge badge-secondary">' . $purchase->supplier->name . '</span>' : 
+                    '<span class="text-muted">N/A</span>';
+            })
+            ->addColumn('expiry_date', function($purchase){
+                $date = $purchase->expiry_date->format('d M, Y');
+                $daysToExpiry = $purchase->expiry_date->diffInDays(now(), false);
+                
+                $class = '';
+                $icon = '';
+                $extraInfo = '';
+                
+                if ($purchase->isExpired()) {
+                    $class = 'text-danger';
+                    $icon = '<i class="fas fa-exclamation-triangle"></i> ';
+                    $extraInfo = '<br><small>Vencido hace ' . abs($daysToExpiry) . ' días</small>';
+                } elseif ($purchase->isNearExpiry()) {
+                    $class = 'text-warning';
+                    $icon = '<i class="fas fa-clock"></i> ';
+                    $extraInfo = '<br><small>Vence en ' . $daysToExpiry . ' días</small>';
+                } else {
+                    $class = 'text-success';
+                    $icon = '<i class="fas fa-calendar-check"></i> ';
+                    $extraInfo = '<br><small>' . $daysToExpiry . ' días restantes</small>';
+                }
+                
+                return '<div class="' . $class . '">' . $icon . $date . $extraInfo . '</div>';
+            })
+            ->addColumn('action', function ($row) {
+                $viewbtn = '<a href="javascript:void(0)" class="btn btn-info btn-sm mr-1" onclick="viewBatchDetails(\'' . $row->batch_number . '\')" data-toggle="tooltip" title="Ver detalles">
+                            <i class="fas fa-eye"></i>
+                           </a>';
+                
+                $editbtn = '<a href="'.route("purchases.edit", $row->id).'" class="btn btn-primary btn-sm mr-1" data-toggle="tooltip" title="Editar">
+                            <i class="fas fa-edit"></i>
+                           </a>';
+                
+                $deletebtn = '<a data-id="'.$row->id.'" data-route="'.route('purchases.destroy', $row->id).'" 
+                             href="javascript:void(0)" id="deletebtn" class="btn btn-danger btn-sm" data-toggle="tooltip" title="Eliminar">
+                             <i class="fas fa-trash"></i>
+                            </a>';
+                
+                if (!auth()->user()->hasPermissionTo('edit-purchase')) {
+                    $editbtn = '';
+                }
+                if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
+                    $deletebtn = '';
+                }
+                
+                $btn = $viewbtn . $editbtn . $deletebtn;
+                return '<div class="btn-group" role="group">' . $btn . '</div>';
+            })
+            ->rawColumns(['batch_number', 'product', 'category', 'cost_price', 'quantity', 'supplier', 'expiry_date', 'action'])
+            ->make(true);
     }
+    return view('admin.purchases.index', compact('title'));
+}
 
     /**
      * Show the form for creating a new resource.
      *
      * @return \Illuminate\Http\Response
      */
-    public function create()
+     public function create()
     {
         $title = 'create purchase';
         $categories = Category::get();
         $suppliers = Supplier::get();
-        return view('admin.purchases.create',compact(
-            'title','categories','suppliers'
-        ));
+        return view('admin.purchases.create', compact('title', 'categories', 'suppliers'));
     }
 
     /**
@@ -96,14 +176,16 @@ class PurchaseController extends Controller
      */
     public function store(Request $request)
     {
-        $this->validate($request,[
-            'product'=>'required|max:200',
-            'category'=>'required',
-            'cost_price'=>'required|min:1',
-            'quantity'=>'required|min:1',
-            'expiry_date'=>'required',
-            'supplier'=>'required',
-            'image'=>'file|image|mimes:jpg,jpeg,png,gif',
+        $this->validate($request, [
+            'product' => 'required|max:200',
+            'category' => 'required|exists:categories,id',
+            'cost_price' => 'required|numeric|min:0.01',
+            'quantity' => 'required|integer|min:1',
+            'expiry_date' => 'required|date|after:today',
+            'supplier' => 'required|exists:suppliers,id',
+            'image' => 'nullable|file|image|mimes:jpg,jpeg,png,gif|max:2048',
+            'batch_number' => 'nullable|string|max:50|unique:purchases,batch_number',
+            'notes' => 'nullable|string|max:1000'
         ]);
         
         $imageName = null;
@@ -112,21 +194,24 @@ class PurchaseController extends Controller
             $request->image->move(public_path('storage/purchases'), $imageName);
         }
         
-        // Solo guardamos la cantidad comprada - NUNCA se modifica
-        Purchase::create([
-            'product'=>$request->product,
-            'category_id'=>$request->category,
-            'supplier_id'=>$request->supplier,
-            'cost_price'=>$request->cost_price,
-            'quantity'=>$request->quantity, // Cantidad COMPRADA (fija)
-            'expiry_date'=>$request->expiry_date,
-            'image'=>$imageName,
+        // Crear la compra con el lote
+        $purchase = Purchase::create([
+            'batch_number' => $request->batch_number, // Se auto-genera si está vacío
+            'product' => $request->product,
+            'category_id' => $request->category,
+            'supplier_id' => $request->supplier,
+            'cost_price' => $request->cost_price,
+            'quantity' => $request->quantity,
+            'expiry_date' => $request->expiry_date,
+            'image' => $imageName,
+            'notes' => $request->notes,
         ]);
         
-        $notifications = notify("Purchase has been added");
+        $notifications = notify("Lote {$purchase->batch_number} ha sido creado exitosamente");
         return redirect()->route('purchases.index')->with($notifications);
     }
 
+   
     /**
      * Show the form for editing the specified resource.
      *
@@ -232,8 +317,70 @@ class PurchaseController extends Controller
      * @param  \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Request $request)
-    {
-        return Purchase::findOrFail($request->id)->delete();
+  
+public function destroy(Request $request, $id = null)
+{
+    try {
+        // Obtener el ID de la request o del parámetro
+        $purchaseId = $id ?? $request->id ?? $request->input('id');
+        
+        if (!$purchaseId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ID de compra no proporcionado.'
+            ], 400);
+        }
+        
+        $purchase = Purchase::find($purchaseId);
+        
+        if (!$purchase) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La compra no fue encontrada.'
+            ], 404);
+        }
+        
+        // Opcional: Verificar si la compra tiene productos asociados
+        // Descomenta estas líneas si tienes relación con productos
+        /*
+        $usedQuantity = $purchase->products()->count();
+        if ($usedQuantity > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede eliminar esta compra porque tiene productos asociados.'
+            ]);
+        }
+        */
+        
+        // Eliminar imagen si existe
+        if ($purchase->image && file_exists(public_path('storage/purchases/' . $purchase->image))) {
+            unlink(public_path('storage/purchases/' . $purchase->image));
+        }
+        
+        $batchNumber = $purchase->batch_number;
+        $deleted = $purchase->delete();
+        
+        if ($deleted) {
+            \Log::info("Compra eliminada exitosamente - ID: {$purchaseId}, Lote: {$batchNumber}");
+            
+            return response()->json([
+                'success' => true,
+                'message' => "El lote {$batchNumber} ha sido eliminado exitosamente."
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo eliminar el registro.'
+            ], 500);
+        }
+        
+    } catch (\Exception $e) {
+        \Log::error('Error al eliminar compra: ' . $e->getMessage() . ' - Trace: ' . $e->getTraceAsString());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno del servidor: ' . $e->getMessage()
+        ], 500);
     }
+}
 }

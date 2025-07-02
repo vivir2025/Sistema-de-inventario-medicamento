@@ -1,4 +1,3 @@
-
 @extends('admin.layouts.app')
 
 <x-assets.datatables />
@@ -37,7 +36,9 @@
                     <th>Correo cliente</th>
                     <th>Teléfono cliente</th>
                     <th>Medicamento</th>
-                    <th>Ubicación</th>
+                    <th>Lote</th>
+                    <th>Fecha Vencimiento</th>
+                    <th>Sede/Transferencia</th>
                     <th>Cantidad</th>
                     <th>Total</th>
                     <th>Fecha</th>
@@ -46,23 +47,59 @@
             <tbody>
                 @foreach ($sales as $sale)
                     @if (!empty($sale->product->purchase))
+                        @php
+                            $municipalityNames = [
+                                'cajibio' => 'Cajibío',
+                                'morales' => 'Morales',
+                                'piendamo' => 'Piendamó'
+                            ];
+                            
+                            $originMunicipality = $sale->origin_municipality ?? null;
+                            $destinationMunicipality = $sale->destination_municipality ?? null;
+                            $saleType = $sale->sale_type ?? 'sale';
+                            $municipalityText = '';
+                            
+                            if ($saleType === 'sale' && $originMunicipality && $destinationMunicipality && $originMunicipality !== $destinationMunicipality) {
+                                $originName = $municipalityNames[$originMunicipality] ?? ucfirst($originMunicipality);
+                                $destinationName = $municipalityNames[$destinationMunicipality] ?? ucfirst($destinationMunicipality);
+                                $municipalityText = "De {$originName} a {$destinationName}";
+                            } else if ($saleType === 'sale' && $originMunicipality && $destinationMunicipality && $originMunicipality === $destinationMunicipality) {
+                                $municipalityName = $municipalityNames[$originMunicipality] ?? ucfirst($originMunicipality);
+                                $municipalityText = "Sede {$municipalityName}";
+                            } else if ($saleType === 'sale' && $originMunicipality && !$destinationMunicipality) {
+                                $municipalityName = $municipalityNames[$originMunicipality] ?? ucfirst($originMunicipality);
+                                $municipalityText = "Sede {$municipalityName}";
+                            } else if ($saleType === 'transfer' && $originMunicipality && $destinationMunicipality) {
+                                $originName = $municipalityNames[$originMunicipality] ?? ucfirst($originMunicipality);
+                                $destinationName = $municipalityNames[$destinationMunicipality] ?? ucfirst($destinationMunicipality);
+                                $municipalityText = "Transferencia: {$originName} → {$destinationName}";
+                            } else {
+                                $productMunicipality = $sale->product->municipality ?? null;
+                                if ($productMunicipality) {
+                                    $municipalityName = $municipalityNames[$productMunicipality] ?? ucfirst($productMunicipality);
+                                    $municipalityText = "Sede {$municipalityName}";
+                                } else {
+                                    $municipalityText = 'No especificado';
+                                }
+                            }
+                        @endphp
+                        
                         <tr>
                             <!-- Columna Cliente (Nombre) -->
                             <td>
                                 <strong>{{ $sale->customer->name ?? 'Sin cliente' }}</strong>
                             </td>
                             
-                             <!-- Columna Email Cliente -->
-                <td>
-                    {{ $sale->customer->email ?? 'No disponible' }}
-                </td>
-                
-                <!-- Columna Teléfono Cliente -->
-                <td>
-                    {{ $sale->customer->phone ?? 'No disponible' }}
-                </td>
+                            <!-- Columna Email Cliente -->
+                            <td>
+                                {{ $sale->customer->email ?? 'No disponible' }}
+                            </td>
+                            
+                            <!-- Columna Teléfono Cliente -->
+                            <td>
+                                {{ $sale->customer->phone ?? 'No disponible' }}
+                            </td>
                               
-            
                             <!-- Columna Medicamento -->
                             <td>
                                 {{ $sale->product->purchase->product }}
@@ -73,8 +110,23 @@
                                 @endif
                             </td>
                             
-                            <!-- Columna Ubicación -->
-                            <td>{{ ucfirst($sale->ubicacion ?? 'Desconocida') }}</td>
+                            <!-- Columna Lote -->
+                            <td>
+                                <span class="badge badge-info">
+                                    {{ $sale->product->purchase->batch_number ?? 'Sin lote' }}
+                                </span>
+                            </td>
+                            <!-- Columna Fecha Vencimiento -->
+        <td>{{date_format(date_create($sale->product->purchase->expiry_date),"d M, Y")}}</td>
+                            
+                            <!-- Columna Sede/Transferencia -->
+                            <td>
+                                <small class="text-muted">
+                                    {{ $municipalityText }}
+                                </small>
+                            </td>
+                            
+                         
                             
                             <!-- Columna Cantidad -->
                             <td>{{ $sale->quantity }}</td>
@@ -152,7 +204,7 @@
             buttons: [
                 {
                     extend: 'pdf',
-                    title: 'Reporte de Compras',
+                    title: 'Reporte de Ventas',
                     exportOptions: {
                         columns: "thead th:not(.action-btn)"
                     },
@@ -162,9 +214,12 @@
                         
                         // Opcional: puedes ajustar otros aspectos del PDF aquí
                         // Por ejemplo, márgenes, estilos, etc.
-                        doc.defaultStyle.fontSize = 8;
-                        doc.styles.tableHeader.fontSize = 9;
+                        doc.defaultStyle.fontSize = 7;
+                        doc.styles.tableHeader.fontSize = 8;
                         doc.styles.title.fontSize = 12;
+                        
+                        // Ajustar el ancho de las columnas para acomodar las nuevas columnas
+                        doc.content[1].table.widths = ['12%', '12%', '10%', '15%', '8%', '15%', '8%', '6%', '8%', '8%'];
                     }
                 },
                     {
@@ -197,7 +252,18 @@
                 processing: "Procesando...",
                 search: "Buscar:",
                 zeroRecords: "No se encontraron registros coincidentes"
-            }
+            },
+            scrollX: true, // Habilitar scroll horizontal para manejar las columnas adicionales
+            columnDefs: [
+                { width: "12%", targets: [0, 1] }, // Cliente, Email
+                { width: "10%", targets: 2 }, // Teléfono
+                { width: "15%", targets: 3 }, // Medicamento
+                { width: "8%", targets: 4 }, // Lote
+                { width: "15%", targets: 5 }, // Sede/Transferencia
+                { width: "8%", targets: [6, 7] }, // Ubicación, Cantidad
+                { width: "8%", targets: 8 }, // Total
+                { width: "8%", targets: 9 } // Fecha
+            ]
         });
     });
 </script>
