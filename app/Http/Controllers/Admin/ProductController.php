@@ -141,6 +141,12 @@ class ProductController extends Controller
                 
                 return $editBtn.' '.$deleteBtn;
             })
+          ->filterColumn('batch_number', function($query, $keyword) {
+    $query->whereHas('purchase', function($q) use ($keyword) {
+        $q->where('batch_number', 'LIKE', "%{$keyword}%");
+    });
+})
+
             ->filterColumn('product', function($query, $keyword) {
                 $query->whereHas('purchase', function($q) use ($keyword) {
                     $q->where('product', 'LIKE', "%{$keyword}%");
@@ -165,25 +171,26 @@ class ProductController extends Controller
                     $q->where('expiry_date', 'LIKE', "%{$keyword}%");
                 });
             })
-            ->filter(function ($query) use ($request) {
-                if ($request->has('search') && !empty($request->search['value'])) {
-                    $searchValue = $request->search['value'];
-                    $query->where(function($q) use ($searchValue) {
-                        $q->whereHas('purchase', function($subQ) use ($searchValue) {
-                            $subQ->where('product', 'LIKE', "%{$searchValue}%");
-                        })
-                        ->orWhereHas('purchase.category', function($subQ) use ($searchValue) {
-                            $subQ->where('name', 'LIKE', "%{$searchValue}%");
-                        })
-                        ->orWhere('municipality', 'LIKE', "%{$searchValue}%")
-                        ->orWhere('price', 'LIKE', "%{$searchValue}%")
-                        ->orWhere('discount', 'LIKE', "%{$searchValue}%")
-                        ->orWhereHas('purchase', function($subQ) use ($searchValue) {
-                            $subQ->where('expiry_date', 'LIKE', "%{$searchValue}%");
-                        });
-                    });
-                }
+           ->filter(function ($query) use ($request) {
+    if ($request->has('search') && !empty($request->search['value'])) {
+        $searchValue = $request->search['value'];
+        $query->where(function($q) use ($searchValue) {
+            $q->whereHas('purchase', function($subQ) use ($searchValue) {
+                $subQ->where('product', 'LIKE', "%{$searchValue}%")
+                    ->orWhere('batch_number', 'LIKE', "%{$searchValue}%"); // ← AGREGAR ESTA LÍNEA
             })
+            ->orWhereHas('purchase.category', function($subQ) use ($searchValue) {
+                $subQ->where('name', 'LIKE', "%{$searchValue}%");
+            })
+            ->orWhere('municipality', 'LIKE', "%{$searchValue}%")
+            ->orWhere('price', 'LIKE', "%{$searchValue}%")
+            ->orWhere('discount', 'LIKE', "%{$searchValue}%")
+            ->orWhereHas('purchase', function($subQ) use ($searchValue) {
+                $subQ->where('expiry_date', 'LIKE', "%{$searchValue}%");
+            });
+        });
+    }
+})
             ->rawColumns(['product', 'municipality', 'quantity', 'action'])
             ->make(true);
     }
@@ -495,8 +502,7 @@ public function outstock(Request $request) {
                     return date('d M, Y', strtotime($product->purchase->expiry_date));
                 })
                 ->filter(function ($query) use ($request) {
-                    // Nota: El filtro de búsqueda se aplica después del filtrado manual
-                    // Si necesitas búsqueda, tendrás que implementarla manualmente
+                    
                 })
                 ->rawColumns(['product', 'municipality', 'quantity'])
                 ->make(true);
