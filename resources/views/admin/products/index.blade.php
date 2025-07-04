@@ -10,7 +10,7 @@
         }
 .expiry-yellow {
     background-color: #ffeb3b !important;
-    color: #ffffff;
+    color: #6b6b6b;
 }
 
 .expiry-orange {
