@@ -5,12 +5,12 @@
 @push('page-css')
     <style>
         .expiry-green {
-            background-color: #d4edda !important;
-            color: #155724;
+            background-color: #155724 !important;
+            color: #ffffff;
         }
 .expiry-yellow {
     background-color: #ffeb3b !important;
-    color: #f57f17;
+    color: #ffffff;
 }
 
 .expiry-orange {
