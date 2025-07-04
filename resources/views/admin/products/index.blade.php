@@ -8,10 +8,15 @@
             background-color: #d4edda !important;
             color: #155724;
         }
-        .expiry-orange {
-            background-color: #fff3cd !important;
-            color: #856404;
-        }
+       .expiry-yellow {
+    background-color: #fff3cd !important;
+    color: #856404;
+}
+
+.expiry-orange {
+    background-color: #ffeaa7 !important;
+    color: #b8860b;
+}
         .expiry-red {
             background-color: #f8d7da !important;
             color: #721c24;
@@ -209,16 +214,31 @@ $(document).ready(function() {
                             var dateStr = dateMatch[0];
                             var expiryDate = new Date(dateStr);
                             var today = new Date();
-                            var oneMonthFromNow = new Date();
-                            oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+                            
+                            // Calcular fechas límite
+                            var threeMonthsFromNow = new Date();
+                            threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+                            
+                            var sixMonthsFromNow = new Date();
+                            sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+                            
+                            var twelveMonthsFromNow = new Date();
+                            twelveMonthsFromNow.setMonth(twelveMonthsFromNow.getMonth() + 12);
                             
                             var colorClass = '';
                             
-                            if (expiryDate < today) {
+                            // Nueva lógica de semaforización
+                            if (expiryDate < today || expiryDate <= threeMonthsFromNow) {
+                                // ROJO: Menos de 3 meses o caducado
                                 colorClass = 'expiry-red';
-                            } else if (expiryDate <= oneMonthFromNow) {
+                            } else if (expiryDate <= sixMonthsFromNow) {
+                                // NARANJA: Menos de 6 meses
                                 colorClass = 'expiry-orange';
+                            } else if (expiryDate <= twelveMonthsFromNow) {
+                                // AMARILLO: De 6 a 12 meses
+                                colorClass = 'expiry-yellow';
                             } else {
+                                // VERDE: Más de 12 meses
                                 colorClass = 'expiry-green';
                             }
                             
