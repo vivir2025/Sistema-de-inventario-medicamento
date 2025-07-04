@@ -8,14 +8,14 @@
             background-color: #d4edda !important;
             color: #155724;
         }
-       .expiry-yellow {
-    background-color: #fff3cd !important;
-    color: #856404;
+.expiry-yellow {
+    background-color: #ffeb3b !important;
+    color: #f57f17;
 }
 
 .expiry-orange {
-    background-color: #ffeaa7 !important;
-    color: #b8860b;
+    background-color: #ff9800 !important;
+    color: #ffffff;
 }
         .expiry-red {
             background-color: #f8d7da !important;
