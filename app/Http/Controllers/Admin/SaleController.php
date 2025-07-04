@@ -406,10 +406,6 @@ public function create()
  */
 public function store(Request $request)
 {
-    // ✅ AUMENTAR LÍMITES TEMPORALMENTE
-    set_time_limit(300); // 5 minutos
-    ini_set('memory_limit', '256M');
-    
     $this->validate($request, [
         'customer_id' => 'required|exists:customers,id',
         'sales_type' => 'required|in:local,transfer',
@@ -424,6 +420,7 @@ public function store(Request $request)
     $customer_id = $request->customer_id;
     $products = $request->products;
     $errors = [];
+    $successful_sales = [];
 
     // Determinar municipios
     $originMunicipality = $request->origin_municipality ?? 'cajibio';
@@ -431,34 +428,17 @@ public function store(Request $request)
         ? $originMunicipality 
         : ($request->destination_municipality ?? 'cajibio');
 
+    // Validar municipios diferentes para transferencias
+    if ($request->sales_type == 'transfer' && $originMunicipality == $destinationMunicipality) {
+        $errors[] = "Para transferencias, el municipio origen y destino deben ser diferentes";
+    }
+
     // Generar ID de grupo
     $sale_group_id = \Illuminate\Support\Str::uuid()->toString();
 
-    // ✅ OPTIMIZACIÓN: Cargar todos los productos de una vez
-    $productIds = collect($products)->pluck('product_id')->toArray();
-    $productData = Product::with('purchase')
-        ->whereIn('id', $productIds)
-        ->get()
-        ->keyBy('id');
-
-    // ✅ OPTIMIZACIÓN: Obtener todas las ventas existentes de una vez
-    $existingSales = \App\Models\Sale::whereIn('product_id', $productIds)
-        ->selectRaw('product_id, SUM(quantity) as total_sold')
-        ->groupBy('product_id')
-        ->get()
-        ->keyBy('product_id');
-
-    // ✅ OPTIMIZACIÓN: Obtener todas las transferencias de una vez
-    $existingTransfers = \App\Models\InventoryAdjustment::whereIn('product_id', $productIds)
-        ->where('type', 'transfer_in')
-        ->selectRaw('product_id, SUM(quantity) as total_transferred')
-        ->groupBy('product_id')
-        ->get()
-        ->keyBy('product_id');
-
-    // Verificar productos (más eficiente)
-    foreach ($products as $index => $productRequest) {
-        $product = $productData->get($productRequest['product_id']);
+    // Verificar productos
+    foreach ($products as $index => $productData) {
+        $product = Product::with('purchase')->find($productData['product_id']);
         
         if (!$product || !$product->purchase) {
             $errors[] = "Producto no encontrado o sin compra asociada.";
@@ -471,19 +451,25 @@ public function store(Request $request)
             continue;
         }
 
-        // Calcular stock disponible
-        $already_sold = $existingSales->get($product->id)->total_sold ?? 0;
-        $transferred_in = $existingTransfers->get($product->id)->total_transferred ?? 0;
+        // ✅ VALIDAR STOCK CORREGIDO - Aplicar la misma lógica que en Products e Index
+        $already_sold = \App\Models\Sale::where('product_id', $product->id)->sum('quantity');
         
-        // Aplicar la misma lógica que antes
+        // Obtener transferencias recibidas
+        $transferred_in = \App\Models\InventoryAdjustment::where('product_id', $product->id)
+            ->where('type', 'transfer_in')
+            ->sum('quantity');
+        
+        // Verificar si este producto fue creado originalmente en este municipio
         $isOriginalInThisMunicipality = true;
         
         if ($transferred_in > 0) {
+            // Buscar si existe el mismo producto (misma purchase_id) en otros municipios
             $otherMunicipalityProducts = \App\Models\Product::where('purchase_id', $product->purchase_id)
                 ->where('municipality', '!=', $product->municipality)
                 ->get();
             
             if ($otherMunicipalityProducts->count() > 0) {
+                // Verificar si alguno de los otros municipios tiene ventas más antiguas
                 $firstSaleThisMunicipality = \App\Models\Sale::where('product_id', $product->id)
                     ->orderBy('created_at', 'asc')
                     ->first();
@@ -504,14 +490,16 @@ public function store(Request $request)
         }
         
         if ($isOriginalInThisMunicipality) {
+            // Es producto original en este municipio: cantidad base + transferencias - vendidas
             $base_quantity = $product->purchase->quantity;
             $available = $base_quantity + $transferred_in - $already_sold;
         } else {
+            // Es producto transferido: solo transferencias - vendidas
             $available = $transferred_in - $already_sold;
         }
 
-        if ($productRequest['quantity'] > $available) {
-            $errors[] = "Stock insuficiente para {$product->purchase->product} (Solicitado: {$productRequest['quantity']}, Disponible: {$available})";
+        if ($productData['quantity'] > $available) {
+            $errors[] = "Stock insuficiente para {$product->purchase->product} (Disponible: {$available})";
         }
     }
     
@@ -521,69 +509,53 @@ public function store(Request $request)
             ->withInput();
     }
     
-    // ✅ OPTIMIZACIÓN: Preparar datos para inserción masiva
-    $salesData = [];
-    $adjustmentsData = [];
-    
-    foreach ($products as $index => $productRequest) {
-        $product = $productData->get($productRequest['product_id']);
-        
-        // Para transferencias entre municipios
-        if ($request->sales_type == 'transfer' && $originMunicipality != $destinationMunicipality) {
-            // Verificar si ya existe el producto en el municipio destino
-            $destProduct = Product::where('purchase_id', $product->purchase_id)
-                                  ->where('municipality', $destinationMunicipality)
-                                  ->first();
+    // Procesar la venta/transferencia
+    \DB::transaction(function() use ($products, $customer_id, $sale_group_id, $originMunicipality, $destinationMunicipality, $request, &$successful_sales) {
+        foreach ($products as $index => $productData) {
+            $product = Product::with('purchase')->find($productData['product_id']);
             
-            if (!$destProduct) {
-                // Si no existe, crear el producto en destino
-                $destProduct = Product::create([
-                    'purchase_id' => $product->purchase_id,
-                    'municipality' => $destinationMunicipality,
-                    'price' => $product->price,
-                    'discount' => $product->discount,
-                    'description' => $product->description,
-                    'category_id' => $product->category_id
+            // Para transferencias entre municipios
+            if ($request->sales_type == 'transfer' && $originMunicipality != $destinationMunicipality) {
+                // Verificar si ya existe el producto en el municipio destino
+                $destProduct = Product::where('purchase_id', $product->purchase_id)
+                                      ->where('municipality', $destinationMunicipality)
+                                      ->first();
+                
+                if (!$destProduct) {
+                    // Si no existe, crear el producto en destino
+                    $destProduct = Product::create([
+                        'purchase_id' => $product->purchase_id,
+                        'municipality' => $destinationMunicipality,
+                        'price' => $product->price,
+                        'discount' => $product->discount,
+                        'description' => $product->description,
+                        'category_id' => $product->category_id
+                    ]);
+                }
+                
+                // ✅ CREAR EL AJUSTE DE INVENTARIO PARA LA CANTIDAD TRANSFERIDA
+                InventoryAdjustment::create([
+                    'product_id' => $destProduct->id,
+                    'type' => 'transfer_in',
+                    'quantity' => $productData['quantity'],
+                    'reference' => "Transferencia desde {$originMunicipality}",
+                    'sale_group_id' => $sale_group_id
                 ]);
             }
             
-            // Preparar datos para ajuste de inventario
-            $adjustmentsData[] = [
-                'product_id' => $destProduct->id,
-                'type' => 'transfer_in',
-                'quantity' => $productRequest['quantity'],
-                'reference' => "Transferencia desde {$originMunicipality}",
+            // Registrar la venta
+            $sale = Sale::create([
+                'product_id' => $productData['product_id'],
+                'customer_id' => $customer_id,
+                'quantity' => $productData['quantity'],
+                'total_price' => $productData['quantity'] * $product->price,
                 'sale_group_id' => $sale_group_id,
-                'created_at' => now(),
-                'updated_at' => now()
-            ];
-        }
-        
-        // Preparar datos para la venta
-        $salesData[] = [
-            'product_id' => $productRequest['product_id'],
-            'customer_id' => $customer_id,
-            'quantity' => $productRequest['quantity'],
-            'total_price' => $productRequest['quantity'] * $product->price,
-            'sale_group_id' => $sale_group_id,
-            'origin_municipality' => $originMunicipality,
-            'destination_municipality' => $destinationMunicipality,
-            'sale_type' => $request->sales_type,
-            'created_at' => now(),
-            'updated_at' => now()
-        ];
-    }
-    
-    // ✅ TRANSACCIÓN OPTIMIZADA: Inserción masiva
-    \DB::transaction(function() use ($salesData, $adjustmentsData) {
-        // Insertar todas las ventas de una vez
-        if (!empty($salesData)) {
-            \App\Models\Sale::insert($salesData);
-        }
-        
-        // Insertar todos los ajustes de inventario de una vez
-        if (!empty($adjustmentsData)) {
-            \App\Models\InventoryAdjustment::insert($adjustmentsData);
+                'origin_municipality' => $originMunicipality,
+                'destination_municipality' => $destinationMunicipality,
+                'sale_type' => $request->sales_type
+            ]);
+            
+            $successful_sales[] = $sale;
         }
     });
     
@@ -592,7 +564,7 @@ public function store(Request $request)
         ? "Venta en {$originMunicipality} registrada"
         : "Transferencia de {$originMunicipality} a {$destinationMunicipality} completada";
     
-    $notification = notify("$message con ".count($salesData)." producto(s)");
+    $notification = notify("$message con ".count($successful_sales)." producto(s)");
     
     return redirect()->route('sales.index')->with($notification);
 }
