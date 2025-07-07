@@ -20,7 +20,7 @@ class PurchaseController extends Controller
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
-      public function index(Request $request)
+    public function index(Request $request)
 {
     $title = 'purchases';
     if($request->ajax()){
@@ -38,6 +38,15 @@ class PurchaseController extends Controller
             case 'expired':
                 $query->expired();
                 break;
+            case 'alto-riesgo':
+                $query->where('riesgo', 'Alto');
+                break;
+            case 'medio-riesgo':
+                $query->where('riesgo', 'Medio');
+                break;
+            case 'bajo-riesgo':
+                $query->where('riesgo', 'Bajo');
+                break;
         }
         
         $purchases = $query->orderBy('expiry_date', 'asc')->get();
@@ -47,12 +56,29 @@ class PurchaseController extends Controller
                 $badge = '';
                 $badgeClass = 'badge-active';
                 
-                if ($purchase->isExpired()) {
-                    $badge = '<span class="badge badge-expired ml-1">Vencido</span>';
+                // Nueva semaforización basada en meses
+                $daysToExpiry = now()->diffInDays($purchase->expiry_date, false);
+                
+                if ($daysToExpiry < 0) {
+                    // Caducado (ROJO)
+                    $badge = '<span class="badge badge-danger ml-1">Caducado</span>';
                     $badgeClass = 'text-danger';
-                } elseif ($purchase->isNearExpiry()) {
-                    $badge = '<span class="badge badge-near-expiry ml-1">Por vencer</span>';
+                } elseif ($daysToExpiry <= 90) {
+                    // Menos de 3 meses (ROJO)
+                    $badge = '<span class="badge badge-danger ml-1">Menos de 3 meses</span>';
+                    $badgeClass = 'text-danger';
+                } elseif ($daysToExpiry <= 180) {
+                    // Menos de 6 meses (NARANJA)
+                    $badge = '<span class="badge" style="background-color: #fd7e14; color: white;" class="ml-1">Menos de 6 meses</span>';
                     $badgeClass = 'text-warning';
+                } elseif ($daysToExpiry <= 365) {
+                    // De 6 a 12 meses (AMARILLO)
+                    $badge = '<span class="badge badge-warning ml-1">6-12 meses</span>';
+                    $badgeClass = 'text-warning';
+                } else {
+                    // Más de 12 meses (VERDE)
+                    $badge = '<span class="badge badge-success ml-1">Más de 12 meses</span>';
+                    $badgeClass = 'text-success';
                 }
                 
                 return '<span class="batch-number ' . $badgeClass . '" data-toggle="tooltip" title="Click para ver detalles" style="cursor: pointer;">' 
@@ -67,9 +93,62 @@ class PurchaseController extends Controller
                 }                 
                 return '<div class="d-flex align-items-center">' . $image . $purchase->product . '</div>';
             })
+            ->addColumn('serie', function($purchase){
+                return $purchase->serie ? 
+                    '<span class="badge badge-light">' . $purchase->serie . '</span>' : 
+                    '<span class="text-muted">N/A</span>';
+            })
             ->addColumn('category', function($purchase){
                 return $purchase->category ? 
                     '<span class="badge badge-info">' . $purchase->category->name . '</span>' : 
+                    '<span class="text-muted">N/A</span>';
+            })
+            ->addColumn('riesgo', function($purchase){
+                if(!$purchase->riesgo) return '<span class="text-muted">N/A</span>';
+                
+                $class = 'badge-secondary';
+                switch(strtolower($purchase->riesgo)) {
+                    case 'alto':
+                        $class = 'badge-danger';
+                        break;
+                    case 'medio':
+                        $class = 'badge-warning';
+                        break;
+                    case 'bajo':
+                        $class = 'badge-success';
+                        break;
+                }
+                
+                return '<span class="badge ' . $class . '">' . $purchase->riesgo . '</span>';
+            })
+            ->addColumn('vida_util', function($purchase){
+                return $purchase->vida_util ? 
+                    '<span class="text-primary">' . $purchase->vida_util . '</span>' : 
+                    '<span class="text-muted">N/A</span>';
+            })
+            ->addColumn('registro_sanitario', function($purchase){
+                return $purchase->registro_sanitario ? 
+                    '<span class="badge badge-outline-primary">' . $purchase->registro_sanitario . '</span>' : 
+                    '<span class="text-muted">N/A</span>';
+            })
+            ->addColumn('presentacion_comercial', function($purchase){
+                return $purchase->presentacion_comercial ? 
+                    '<span class="text-info">' . $purchase->presentacion_comercial . '</span>' : 
+                    '<span class="text-muted">N/A</span>';
+            })
+            ->addColumn('forma_farmaceutica', function($purchase){
+                return $purchase->forma_farmaceutica ? 
+                    '<span class="badge badge-outline-info">' . $purchase->forma_farmaceutica . '</span>' : 
+                    '<span class="text-muted">N/A</span>';
+            })
+            ->addColumn('concentracion', function($purchase){
+                return $purchase->concentracion ? 
+                    '<span class="text-success font-weight-bold">' . $purchase->concentracion . '</span>' : 
+                    '<span class="text-muted">N/A</span>';
+            })
+            ->addColumn('unidad_medida', function($purchase){
+                return $purchase->unidad_medida ? 
+                    '<span class="badge badge-outline-secondary">' . $purchase->unidad_medida . '</span>' : 
                     '<span class="text-muted">N/A</span>';
             })
             ->addColumn('cost_price', function($purchase){
@@ -103,21 +182,35 @@ class PurchaseController extends Controller
             })
             ->addColumn('expiry_date', function($purchase){
                 $date = $purchase->expiry_date->format('d M, Y');
-                $daysToExpiry = $purchase->expiry_date->diffInDays(now(), false);
+                $daysToExpiry = now()->diffInDays($purchase->expiry_date, false);
                 
                 $class = '';
                 $icon = '';
                 $extraInfo = '';
                 
-                if ($purchase->isExpired()) {
+                // Nueva semaforización basada en meses
+                if ($daysToExpiry < 0) {
+                    // Caducado (ROJO)
                     $class = 'text-danger';
                     $icon = '<i class="fas fa-exclamation-triangle"></i> ';
-                    $extraInfo = '<br><small>Vencido hace ' . abs($daysToExpiry) . ' días</small>';
-                } elseif ($purchase->isNearExpiry()) {
+                    $extraInfo = '<br><small>Caducado hace ' . abs($daysToExpiry) . ' días</small>';
+                } elseif ($daysToExpiry <= 90) {
+                    // Menos de 3 meses (ROJO)
+                    $class = 'text-danger';
+                    $icon = '<i class="fas fa-exclamation-triangle"></i> ';
+                    $extraInfo = '<br><small>Vence en ' . $daysToExpiry . ' días</small>';
+                } elseif ($daysToExpiry <= 180) {
+                    // Menos de 6 meses (NARANJA)
                     $class = 'text-warning';
                     $icon = '<i class="fas fa-clock"></i> ';
                     $extraInfo = '<br><small>Vence en ' . $daysToExpiry . ' días</small>';
+                } elseif ($daysToExpiry <= 365) {
+                    // De 6 a 12 meses (AMARILLO)
+                    $class = 'text-warning';
+                    $icon = '<i class="fas fa-calendar-check"></i> ';
+                    $extraInfo = '<br><small>Vence en ' . $daysToExpiry . ' días</small>';
                 } else {
+                    // Más de 12 meses (VERDE)
                     $class = 'text-success';
                     $icon = '<i class="fas fa-calendar-check"></i> ';
                     $extraInfo = '<br><small>' . $daysToExpiry . ' días restantes</small>';
@@ -149,7 +242,10 @@ class PurchaseController extends Controller
                 $btn = $viewbtn . $editbtn . $deletebtn;
                 return '<div class="btn-group" role="group">' . $btn . '</div>';
             })
-            ->rawColumns(['batch_number', 'product', 'category', 'cost_price', 'quantity', 'supplier', 'expiry_date', 'action'])
+            ->addColumn('marca', function ($purchase) {
+                return $purchase->marca ?? '<span class="text-muted">N/A</span>';
+            })
+            ->rawColumns(['batch_number', 'product', 'serie', 'category', 'riesgo', 'vida_util', 'registro_sanitario', 'presentacion_comercial', 'forma_farmaceutica', 'concentracion', 'unidad_medida', 'cost_price', 'quantity', 'supplier', 'expiry_date', 'action', 'marca'])
             ->make(true);
     }
     return view('admin.purchases.index', compact('title'));
@@ -160,7 +256,7 @@ class PurchaseController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-     public function create()
+    public function create()
     {
         $title = 'create purchase';
         $categories = Category::get();
@@ -168,13 +264,14 @@ class PurchaseController extends Controller
         return view('admin.purchases.create', compact('title', 'categories', 'suppliers'));
     }
 
+
     /**
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+     public function store(Request $request)
     {
         $this->validate($request, [
             'product' => 'required|max:200',
@@ -185,7 +282,17 @@ class PurchaseController extends Controller
             'supplier' => 'required|exists:suppliers,id',
             'image' => 'nullable|file|image|mimes:jpg,jpeg,png,gif|max:2048',
             'batch_number' => 'nullable|string|max:50|unique:purchases,batch_number',
-            'notes' => 'nullable|string|max:1000'
+            'notes' => 'nullable|string|max:1000',
+            // Nuevos campos
+            'serie' => 'nullable|string|max:100',
+            'riesgo' => 'nullable|string|in:Alto,Medio,Bajo',
+            'vida_util' => 'nullable|string|max:100',
+            'registro_sanitario' => 'nullable|string|max:100',
+            'presentacion_comercial' => 'nullable|string|max:100',
+            'forma_farmaceutica' => 'nullable|string|max:100',
+            'concentracion' => 'nullable|string|max:100',
+            'unidad_medida' => 'nullable|string|max:50',
+            'marca' => 'nullable|string|max:100',
         ]);
         
         $imageName = null;
@@ -194,9 +301,9 @@ class PurchaseController extends Controller
             $request->image->move(public_path('storage/purchases'), $imageName);
         }
         
-        // Crear la compra con el lote
+        // Crear la compra con el lote y todos los nuevos campos
         $purchase = Purchase::create([
-            'batch_number' => $request->batch_number, // Se auto-genera si está vacío
+            'batch_number' => $request->batch_number,
             'product' => $request->product,
             'category_id' => $request->category,
             'supplier_id' => $request->supplier,
@@ -205,12 +312,21 @@ class PurchaseController extends Controller
             'expiry_date' => $request->expiry_date,
             'image' => $imageName,
             'notes' => $request->notes,
+            // Nuevos campos
+            'serie' => $request->serie,
+            'riesgo' => $request->riesgo,
+            'vida_util' => $request->vida_util,
+            'registro_sanitario' => $request->registro_sanitario,
+            'presentacion_comercial' => $request->presentacion_comercial,
+            'forma_farmaceutica' => $request->forma_farmaceutica,
+            'concentracion' => $request->concentracion,
+            'unidad_medida' => $request->unidad_medida,
+            'marca' => $request->marca,
         ]);
         
         $notifications = notify("Lote {$purchase->batch_number} ha sido creado exitosamente");
         return redirect()->route('purchases.index')->with($notifications);
     }
-
    
     /**
      * Show the form for editing the specified resource.
@@ -247,10 +363,20 @@ class PurchaseController extends Controller
             'product'=>'required|max:200',
             'category'=>'required',
             'cost_price'=>'required|min:1',
-            'quantity'=>'required|min:1', // Validamos que sea mayor a 1
+            'quantity'=>'required|min:1',
             'expiry_date'=>'required',
             'supplier'=>'required',
             'image'=>'file|image|mimes:jpg,jpeg,png,gif',
+            // Nuevos campos
+            'serie' => 'nullable|string|max:100',
+            'riesgo' => 'nullable|string|in:Alto,Medio,Bajo',
+            'vida_util' => 'nullable|string|max:100',
+            'registro_sanitario' => 'nullable|string|max:100',
+            'presentacion_comercial' => 'nullable|string|max:100',
+            'forma_farmaceutica' => 'nullable|string|max:100',
+            'concentracion' => 'nullable|string|max:100',
+            'unidad_medida' => 'nullable|string|max:50',
+            'marca' => 'nullable|string|max:100',
         ]);
 
         $imageName = $purchase->image;
@@ -259,15 +385,25 @@ class PurchaseController extends Controller
             $request->image->move(public_path('storage/purchases'), $imageName);
         }
         
-        // Actualizamos todos los campos incluyendo quantity
+        // Actualizamos todos los campos incluyendo los nuevos
         $purchase->update([
             'product'=>$request->product,
             'category_id'=>$request->category,
             'supplier_id'=>$request->supplier,
             'cost_price'=>$request->cost_price,
-            'quantity'=>$request->quantity, // Permitimos cambiar la cantidad comprada
+            'quantity'=>$request->quantity,
             'expiry_date'=>$request->expiry_date,
             'image'=>$imageName,
+            // Nuevos campos
+            'serie' => $request->serie,
+            'riesgo' => $request->riesgo,
+            'vida_util' => $request->vida_util,
+            'registro_sanitario' => $request->registro_sanitario,
+            'presentacion_comercial' => $request->presentacion_comercial,
+            'forma_farmaceutica' => $request->forma_farmaceutica,
+            'concentracion' => $request->concentracion,
+            'unidad_medida' => $request->unidad_medida,
+            'marca' => $request->marca,
         ]);
         
         $notifications = notify("Purchase has been updated");

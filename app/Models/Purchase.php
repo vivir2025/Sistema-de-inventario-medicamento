@@ -11,9 +11,12 @@ class Purchase extends Model
     use HasFactory;
 
     protected $fillable = [
-        'batch_number', 'product', 'category_id', 'supplier_id',
-        'cost_price', 'quantity', 'expiry_date', 'image', 'notes'
-    ];
+    'batch_number', 'product', 'category_id', 'supplier_id', 
+    'cost_price', 'quantity', 'expiry_date', 'image', 'notes',
+    'serie', 'riesgo', 'vida_util', 'registro_sanitario', 
+    'presentacion_comercial', 'forma_farmaceutica', 
+    'concentracion', 'unidad_medida', 'marca'
+];
 
     protected $casts = [
         'expiry_date' => 'date'

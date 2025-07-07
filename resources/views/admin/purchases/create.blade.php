@@ -27,8 +27,9 @@
                     
                     <!-- Información del Lote -->
                     <div class="service-fields mb-3">
+                        <h5 class="mb-3"><i class="fas fa-box"></i> Información del Lote</h5>
                         <div class="row">
-                            <div class="col-lg-6">
+                            <div class="col-lg-4">
                                 <div class="form-group">
                                     <label>Número de Lote</label>
                                     <input class="form-control" type="text" name="batch_number" 
@@ -37,7 +38,15 @@
                                     <small class="text-muted">Ejemplo: LOTE-2025-0001</small>
                                 </div>
                             </div>
-                            <div class="col-lg-6">
+                            <div class="col-lg-4">
+                                <div class="form-group">
+                                    <label>Serie</label>
+                                    <input class="form-control" type="text" name="serie" 
+                                           placeholder="Número de serie del lote"
+                                           value="{{old('serie')}}">
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
                                 <div class="form-group">
                                     <label>Fecha de Vencimiento<span class="text-danger">*</span></label>
                                     <input class="form-control" type="date" name="expiry_date" 
@@ -49,12 +58,20 @@
 
                     <!-- Información del Producto -->
                     <div class="service-fields mb-3">
+                        <h5 class="mb-3"><i class="fas fa-pills"></i> Información Principio Activo o Dispositivo Medico</h5>
                         <div class="row">
                             <div class="col-lg-4">
                                 <div class="form-group">
-                                    <label>Nombre del Medicamento<span class="text-danger">*</span></label>
+                                    <label>Nombre del Principio Activo o Dispositivo Medico <span class="text-danger">*</span></label>
                                     <input class="form-control" type="text" name="product" 
                                            value="{{old('product')}}" required>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="form-group">
+                                    <label>Marca</label>
+                                    <input class="form-control" type="text" name="marca" 
+                                           value="{{old('marca')}}">
                                 </div>
                             </div>
                             <div class="col-lg-4">
@@ -87,9 +104,80 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Información Farmacéutica -->
+                    <div class="service-fields mb-3">
+                        <h5 class="mb-3"><i class="fas fa-prescription-bottle"></i> Información Farmacéutica</h5>
+                        <div class="row">
+                            <div class="col-lg-4">
+                                <div class="form-group">
+                                    <label>Concentración</label>
+                                    <input class="form-control" type="text" name="concentracion" 
+                                           placeholder="Ej: 500mg, 10ml, 2.5%"
+                                           value="{{old('concentracion')}}">
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="form-group">
+                                    <label>Forma Farmacéutica</label>
+                                    <input class="form-control" type="text" name="forma_farmaceutica" 
+                                           placeholder="Ej: Tableta, Cápsula, Jarabe"
+                                           value="{{old('forma_farmaceutica')}}">
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="form-group">
+                                    <label>Presentación Comercial</label>
+                                    <input class="form-control" type="text" name="presentacion_comercial" 
+                                           placeholder="Ej: Frasco x 30 tabletas"
+                                           value="{{old('presentacion_comercial')}}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-4">
+                                <div class="form-group">
+                                    <label>Unidad de Medida</label>
+                                    <input class="form-control" type="text" name="unidad_medida" 
+                                           placeholder="Ej: mg, ml, gr, UI"
+                                           value="{{old('unidad_medida')}}">
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="form-group">
+                                    <label>Registro Sanitario</label>
+                                    <input class="form-control" type="text" name="registro_sanitario" 
+                                           placeholder="Número de registro sanitario"
+                                           value="{{old('registro_sanitario')}}">
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="form-group">
+                                    <label>Nivel de Riesgo</label>
+                                    <select class="form-control" name="riesgo">
+                                        <option value="">Seleccionar Nivel</option>
+                                        <option value="Alto" {{old('riesgo') == 'Alto' ? 'selected' : ''}}>Alto</option>
+                                        <option value="Medio" {{old('riesgo') == 'Medio' ? 'selected' : ''}}>Medio</option>
+                                        <option value="Bajo" {{old('riesgo') == 'Bajo' ? 'selected' : ''}}>Bajo</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <div class="form-group">
+                                    <label>Vida Útil</label>
+                                    <input class="form-control" type="text" name="vida_util" 
+                                           placeholder="Ej: 24 meses, 3 años"
+                                           value="{{old('vida_util')}}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Precios y Cantidades -->
                     <div class="service-fields mb-3">
+                        <h5 class="mb-3"><i class="fas fa-dollar-sign"></i> Precios y Cantidades</h5>
                         <div class="row">
                             <div class="col-lg-6">
                                 <div class="form-group">
@@ -110,6 +198,7 @@
 
                     <!-- Imagen y Notas -->
                     <div class="service-fields mb-3">
+                        <h5 class="mb-3"><i class="fas fa-image"></i> Imagen y Observaciones</h5>
                         <div class="row">
                             <div class="col-lg-6">
                                 <div class="form-group">

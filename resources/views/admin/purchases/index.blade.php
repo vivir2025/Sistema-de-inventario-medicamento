@@ -24,6 +24,29 @@
     .stock-critical { color: #dc3545; }
     .stock-low { color: #ffc107; }
     .stock-good { color: #28a745; }
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .table th, .table td {
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .table th {
+        font-size: 0.85em;
+        padding: 8px 6px;
+    }
+    .table td {
+        font-size: 0.8em;
+        padding: 6px 4px;
+    }
+    .btn-sm {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+    }
+    /* Estilos para la nueva semaforización */
+    .text-orange {
+        color: #fd7e14 !important;
+    }
 </style>
 @endpush
 
@@ -50,7 +73,7 @@
         <div class="card mb-3">
             <div class="card-body py-2">
                 <div class="row align-items-center">
-                    <div class="col-md-6">
+                    <div class="col-md-8">
                         <div class="btn-group btn-group-sm" role="group">
                             <button type="button" class="btn btn-outline-primary active" id="filter-all">
                                 Todos
@@ -64,9 +87,18 @@
                             <button type="button" class="btn btn-outline-danger" id="filter-expired">
                                 Vencidos
                             </button>
+                            <button type="button" class="btn btn-outline-danger" id="filter-alto-riesgo">
+                                Alto Riesgo
+                            </button>
+                            <button type="button" class="btn btn-outline-warning" id="filter-medio-riesgo">
+                                Medio Riesgo
+                            </button>
+                            <button type="button" class="btn btn-outline-success" id="filter-bajo-riesgo">
+                                Bajo Riesgo
+                            </button>
                         </div>
                     </div>
-                    <div class="col-md-6 text-right">
+                    <div class="col-md-4 text-right">
                         <small class="text-muted">
                             <i class="fas fa-info-circle"></i>
                             Los lotes se ordenan por fecha de vencimiento
@@ -76,6 +108,7 @@
             </div>
         </div>
 
+        
         <!-- Compras Recientes -->
         <div class="card">
             <div class="card-body">
@@ -83,13 +116,22 @@
                     <table id="purchase-table" class="datatable table table-hover table-center mb-0">
                         <thead>
                             <tr>
-                                <th>Número de Lote</th>
-                                <th>Nombre del Medicamento</th>
+                                <th>Lote</th>
+                                <th>P. Act./D. Med</th>
+                                <th>Marca</th>
+                                <th>Serie</th>
                                 <th>Categoría</th>
+                                <th>Riesgo</th>
+                                <th>Concentración</th>
+                                <th>Forma Farm.</th>
+                                <th>Presentación</th>
+                                <th>Unidad</th>
+                                <th>Vida Útil</th>
+                                <th>Reg. Sanitario</th>
                                 <th>Proveedor</th>
-                                <th>Precio de Compra</th>
-                                <th>Stock (Disp./Total)</th>
-                                <th>Fecha de Vencimiento</th>
+                                <th>Precio</th>
+                                <th>Stock</th>
+                                <th>Vencimiento</th>
                                 <th class="action-btn">Acción</th>
                             </tr>
                         </thead>
@@ -139,14 +181,23 @@ $(document).ready(function() {
         columns: [
             {data: 'batch_number', name: 'batch_number', orderable: true},
             {data: 'product', name: 'product'},
+            {data: 'marca', name: 'marca'},
+            {data: 'serie', name: 'serie'},
             {data: 'category', name: 'category'},
+            {data: 'riesgo', name: 'riesgo'},
+            {data: 'concentracion', name: 'concentracion'},
+            {data: 'forma_farmaceutica', name: 'forma_farmaceutica'},
+            {data: 'presentacion_comercial', name: 'presentacion_comercial'},
+            {data: 'unidad_medida', name: 'unidad_medida'},
+            {data: 'vida_util', name: 'vida_util'},
+            {data: 'registro_sanitario', name: 'registro_sanitario'},
             {data: 'supplier', name: 'supplier'},
             {data: 'cost_price', name: 'cost_price'},
             {data: 'quantity', name: 'quantity', orderable: false},
             {data: 'expiry_date', name: 'expiry_date'},
             {data: 'action', name: 'action', orderable: false, searchable: false},
         ],
-        order: [[6, 'asc']], // Ordenar por fecha de vencimiento
+        order: [[14, 'asc']], // Ordenar por fecha de vencimiento (ahora es la columna 14)
         language: {
             processing: "Procesando...",
             search: "Buscar:",

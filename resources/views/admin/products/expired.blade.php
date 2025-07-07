@@ -90,14 +90,22 @@
                         <thead>
                             <tr>
                                 <th>Lote</th>
-                                <th>Nombre Comercial</th>
-                                
+                                <th>P. Act./D. Med</th>
+                                <th>Marca</th>
                                 <th>Municipio</th>
                                 <th>Categoría</th>
                                 <th>Precio</th>
                                 <th>Cantidad</th>
                                 <th>Descuento</th>
                                 <th>Vence</th>
+                                <th>Serie</th>
+                                <th>Riesgo</th>
+                                <th>Vida Útil</th>
+                                <th>Registro Sanitario</th>
+                                <th>Presentación Comercial</th>
+                                <th>Forma Farmacéutica</th>
+                                <th>Concentración</th>
+                                <th>Unidad de Medida</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -141,7 +149,7 @@
             columns: [
                 {data: 'batch_number', name: 'batch_number'},
                 {data: 'product', name: 'product'},
-                 
+                {data: 'marca', name: 'marca'},
                 {data: 'municipality', name: 'municipality'},
                 {data: 'category', name: 'category'},
                 {data: 'price', name: 'price'},
@@ -153,18 +161,27 @@
                     render: function(data, type, row) {
                         return '<span class="expiry-red p-2 rounded">' + data + '</span>';
                     }
-                }
+                },
+                {data: 'serie', name: 'serie'},
+                {data: 'riesgo', name: 'riesgo'},
+                {data: 'vida_util', name: 'vida_util'},
+                {data: 'registro_sanitario', name: 'registro_sanitario'},
+                {data: 'presentacion_comercial', name: 'presentacion_comercial'},
+                {data: 'forma_farmaceutica', name: 'forma_farmaceutica'},
+                {data: 'concentracion', name: 'concentracion'},
+                {data: 'unidad_medida', name: 'unidad_medida'}
             ],
             language: {
                 url: "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
             },
             dom: 'Bfrtip',
             buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
+                'copy', 'csv', 'excel', 'print'
             ],
             pageLength: 25,
             responsive: true,
             stateSave: true,
+            scrollX: true,
             drawCallback: function(settings) {
                 console.log('DataTable redrawn');
             }

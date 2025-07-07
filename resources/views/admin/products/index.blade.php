@@ -8,15 +8,14 @@
             background-color: #155724 !important;
             color: #ffffff;
         }
-.expiry-yellow {
-    background-color: #ffeb3b !important;
-    color: #6b6b6b;
-}
-
-.expiry-orange {
-    background-color: #ff9800 !important;
-    color: #ffffff;
-}
+        .expiry-yellow {
+            background-color: #ffeb3b !important;
+            color: #6b6b6b;
+        }
+        .expiry-orange {
+            background-color: #ff9800 !important;
+            color: #ffffff;
+        }
         .expiry-red {
             background-color: #f8d7da !important;
             color: #721c24;
@@ -31,6 +30,17 @@
             padding: 15px;
             margin-bottom: 20px;
         }
+        /* Estilo para campos de información adicional */
+        .info-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            margin: 0.125rem;
+            display: inline-block;
+        }
+        .riesgo-alto { background-color: #dc3545; color: white; }
+        .riesgo-medio { background-color: #ffc107; color: black; }
+        .riesgo-bajo { background-color: #28a745; color: white; }
     </style>
 @endpush
 
@@ -117,13 +127,23 @@
                         <thead>
                             <tr>
                                 <th>Lote</th>
-                                <th>Nombre del Producto</th>
+                                <th>P. Act./D. Med</th>
+                                <th>Marca</th>
                                 <th>Municipio</th>
                                 <th>Categoría</th>
+                                <th>Fecha de Vencimiento</th>
+                                <th>Serie</th>
+                                <th>Riesgo</th>
+                                <th>Vida Útil</th>
+                                <th>Registro Sanitario</th>
+                                <th>Presentación</th>
+                                <th>Forma Farmacéutica</th>
+                                <th>Concentración</th>
+                                <th>Unidad de Medida</th>
                                 <th>Precio</th>
                                 <th>Cantidad</th>
                                 <th>Descuento</th>
-                                <th>Fecha de Vencimiento</th>
+                                
                                 <th class="action-btn">Acción</th>
                             </tr>
                         </thead>
@@ -156,21 +176,29 @@ $(document).ready(function() {
             }
         },
         columns: [
-
-              {
-        data: 'batch_number',
-        name: 'batch_number',
-        orderable: true,
-        searchable: true,
-        render: function(data, type, row) {
-            return data || 'N/A';
-        }
-    },
+            {
+                data: 'batch_number',
+                name: 'batch_number',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    return data || 'N/A';
+                }
+            },
             {
                 data: 'product',
                 name: 'product',
                 orderable: true,
                 searchable: true
+            },
+            {
+                data: 'marca',
+                name: 'marca',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    return data || 'N/A';
+                }
             },
             {
                 data: 'municipality',
@@ -184,25 +212,7 @@ $(document).ready(function() {
                 orderable: true,
                 searchable: true
             },
-            {
-                data: 'price',
-                name: 'price',
-                orderable: true,
-                searchable: true
-            },
-            {
-                data: 'quantity',
-                name: 'quantity',
-                orderable: true,
-                searchable: false
-            },
-            {
-                data: 'discount',
-                name: 'discount',
-                orderable: true,
-                searchable: true
-            },
-            {
+             {
                 data: 'expiry_date', 
                 name: 'expiry_date',
                 orderable: true,
@@ -249,6 +259,110 @@ $(document).ready(function() {
                 }
             },
             {
+                data: 'serie',
+                name: 'serie',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    return data || 'N/A';
+                }
+            },
+            {
+                data: 'riesgo',
+                name: 'riesgo',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    if (!data || data === 'N/A') return 'N/A';
+                    
+                    var riesgoClass = '';
+                    var riesgoLower = data.toLowerCase();
+                    
+                    if (riesgoLower.includes('alto')) {
+                        riesgoClass = 'riesgo-alto';
+                    } else if (riesgoLower.includes('medio')) {
+                        riesgoClass = 'riesgo-medio';
+                    } else if (riesgoLower.includes('bajo')) {
+                        riesgoClass = 'riesgo-bajo';
+                    }
+                    
+                    return '<span class="info-badge ' + riesgoClass + '">' + data + '</span>';
+                }
+            },
+            {
+                data: 'vida_util',
+                name: 'vida_util',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    return data || 'N/A';
+                }
+            },
+            {
+                data: 'registro_sanitario',
+                name: 'registro_sanitario',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    return data || 'N/A';
+                }
+            },
+            {
+                data: 'presentacion_comercial',
+                name: 'presentacion_comercial',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    return data || 'N/A';
+                }
+            },
+            {
+                data: 'forma_farmaceutica',
+                name: 'forma_farmaceutica',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    return data || 'N/A';
+                }
+            },
+            {
+                data: 'concentracion',
+                name: 'concentracion',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    return data || 'N/A';
+                }
+            },
+            {
+                data: 'unidad_medida',
+                name: 'unidad_medida',
+                orderable: true,
+                searchable: true,
+                render: function(data, type, row) {
+                    return data || 'N/A';
+                }
+            },
+            {
+                data: 'price',
+                name: 'price',
+                orderable: true,
+                searchable: true
+            },
+            {
+                data: 'quantity',
+                name: 'quantity',
+                orderable: true,
+                searchable: false
+            },
+            {
+                data: 'discount',
+                name: 'discount',
+                orderable: true,
+                searchable: true
+            },
+           
+            {
                 data: 'action', 
                 name: 'action', 
                 orderable: false, 
@@ -260,11 +374,12 @@ $(document).ready(function() {
         },
         dom: 'Bfrtip',
         buttons: [
-            'copy', 'csv', 'excel', 'pdf', 'print'
+            'copy', 'csv', 'excel', 'print'
         ],
         pageLength: 25,
         responsive: true,
         stateSave: true,
+        scrollX: true, // Agregar scroll horizontal para manejar las columnas adicionales
         drawCallback: function(settings) {
             console.log('DataTable redrawn');
         }

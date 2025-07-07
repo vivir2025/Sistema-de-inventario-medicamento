@@ -18,7 +18,7 @@ class ProductController extends Controller
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
- public function index(Request $request)
+public function index(Request $request)
 {
     $title = 'products';
     $municipality = $request->get('municipality', 'all'); // Obtener filtro de municipio
@@ -34,9 +34,7 @@ class ProductController extends Controller
         $products = $products->latest();
         
         return DataTables::of($products)
-
-
-                ->addColumn('batch_number', function($product) {
+            ->addColumn('batch_number', function($product) {
                 return $product->purchase->batch_number ?? 'N/A';
             })
             ->addColumn('product', function($product) {
@@ -49,6 +47,9 @@ class ProductController extends Controller
                 
                 return $product->purchase->product . ' ' . $image;
             })
+            ->addColumn('marca', function($product) {
+                return $product->purchase->marca ?? 'N/A';
+            })
             ->addColumn('municipality', function($product) {
                 $badges = [
                     'cajibio' => '<span class="badge badge-info">Cajibío</span>',
@@ -59,6 +60,31 @@ class ProductController extends Controller
             })
             ->addColumn('category', function($product) {
                 return $product->purchase->category->name ?? 'N/A';
+            })
+            // Nuevos campos agregados
+            ->addColumn('serie', function($product) {
+                return $product->purchase->serie ?? 'N/A';
+            })
+            ->addColumn('riesgo', function($product) {
+                return $product->purchase->riesgo ?? 'N/A';
+            })
+            ->addColumn('vida_util', function($product) {
+                return $product->purchase->vida_util ?? 'N/A';
+            })
+            ->addColumn('registro_sanitario', function($product) {
+                return $product->purchase->registro_sanitario ?? 'N/A';
+            })
+            ->addColumn('presentacion_comercial', function($product) {
+                return $product->purchase->presentacion_comercial ?? 'N/A';
+            })
+            ->addColumn('forma_farmaceutica', function($product) {
+                return $product->purchase->forma_farmaceutica ?? 'N/A';
+            })
+            ->addColumn('concentracion', function($product) {
+                return $product->purchase->concentracion ?? 'N/A';
+            })
+            ->addColumn('unidad_medida', function($product) {
+                return $product->purchase->unidad_medida ?? 'N/A';
             })
             ->addColumn('price', function($product) {
                 return settings('app_currency', '$').' '.number_format($product->price, 2);
@@ -141,15 +167,19 @@ class ProductController extends Controller
                 
                 return $editBtn.' '.$deleteBtn;
             })
-          ->filterColumn('batch_number', function($query, $keyword) {
-    $query->whereHas('purchase', function($q) use ($keyword) {
-        $q->where('batch_number', 'LIKE', "%{$keyword}%");
-    });
-})
-
+            ->filterColumn('batch_number', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('batch_number', 'LIKE', "%{$keyword}%");
+                });
+            })
             ->filterColumn('product', function($query, $keyword) {
                 $query->whereHas('purchase', function($q) use ($keyword) {
                     $q->where('product', 'LIKE', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('marca', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('marca', 'LIKE', "%{$keyword}%");
                 });
             })
             ->filterColumn('municipality', function($query, $keyword) {
@@ -158,6 +188,47 @@ class ProductController extends Controller
             ->filterColumn('category', function($query, $keyword) {
                 $query->whereHas('purchase.category', function($q) use ($keyword) {
                     $q->where('name', 'LIKE', "%{$keyword}%");
+                });
+            })
+            // Filtros para los nuevos campos
+            ->filterColumn('serie', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('serie', 'LIKE', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('riesgo', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('riesgo', 'LIKE', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('vida_util', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('vida_util', 'LIKE', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('registro_sanitario', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('registro_sanitario', 'LIKE', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('presentacion_comercial', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('presentacion_comercial', 'LIKE', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('forma_farmaceutica', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('forma_farmaceutica', 'LIKE', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('concentracion', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('concentracion', 'LIKE', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('unidad_medida', function($query, $keyword) {
+                $query->whereHas('purchase', function($q) use ($keyword) {
+                    $q->where('unidad_medida', 'LIKE', "%{$keyword}%");
                 });
             })
             ->filterColumn('price', function($query, $keyword) {
@@ -171,27 +242,35 @@ class ProductController extends Controller
                     $q->where('expiry_date', 'LIKE', "%{$keyword}%");
                 });
             })
-           ->filter(function ($query) use ($request) {
-    if ($request->has('search') && !empty($request->search['value'])) {
-        $searchValue = $request->search['value'];
-        $query->where(function($q) use ($searchValue) {
-            $q->whereHas('purchase', function($subQ) use ($searchValue) {
-                $subQ->where('product', 'LIKE', "%{$searchValue}%")
-                    ->orWhere('batch_number', 'LIKE', "%{$searchValue}%"); // ← AGREGAR ESTA LÍNEA
+            ->filter(function ($query) use ($request) {
+                if ($request->has('search') && !empty($request->search['value'])) {
+                    $searchValue = $request->search['value'];
+                    $query->where(function($q) use ($searchValue) {
+                        $q->whereHas('purchase', function($subQ) use ($searchValue) {
+                            $subQ->where('product', 'LIKE', "%{$searchValue}%")
+                            ->orWhere('marca', 'LIKE', "%{$searchValue}%")
+                               ->orWhere('batch_number', 'LIKE', "%{$searchValue}%")
+                                
+                                ->orWhere('serie', 'LIKE', "%{$searchValue}%")
+                                ->orWhere('riesgo', 'LIKE', "%{$searchValue}%")
+                                ->orWhere('vida_util', 'LIKE', "%{$searchValue}%")
+                                ->orWhere('registro_sanitario', 'LIKE', "%{$searchValue}%")
+                                ->orWhere('presentacion_comercial', 'LIKE', "%{$searchValue}%")
+                                ->orWhere('forma_farmaceutica', 'LIKE', "%{$searchValue}%")
+                                ->orWhere('concentracion', 'LIKE', "%{$searchValue}%")
+                                ->orWhere('unidad_medida', 'LIKE', "%{$searchValue}%")
+                                ->orWhere('expiry_date', 'LIKE', "%{$searchValue}%");
+                        })
+                        ->orWhereHas('purchase.category', function($subQ) use ($searchValue) {
+                            $subQ->where('name', 'LIKE', "%{$searchValue}%");
+                        })
+                        ->orWhere('municipality', 'LIKE', "%{$searchValue}%")
+                        ->orWhere('price', 'LIKE', "%{$searchValue}%")
+                        ->orWhere('discount', 'LIKE', "%{$searchValue}%");
+                    });
+                }
             })
-            ->orWhereHas('purchase.category', function($subQ) use ($searchValue) {
-                $subQ->where('name', 'LIKE', "%{$searchValue}%");
-            })
-            ->orWhere('municipality', 'LIKE', "%{$searchValue}%")
-            ->orWhere('price', 'LIKE', "%{$searchValue}%")
-            ->orWhere('discount', 'LIKE', "%{$searchValue}%")
-            ->orWhereHas('purchase', function($subQ) use ($searchValue) {
-                $subQ->where('expiry_date', 'LIKE', "%{$searchValue}%");
-            });
-        });
-    }
-})
-            ->rawColumns(['product', 'municipality', 'quantity', 'action'])
+            ->rawColumns(['product', 'municipality', 'quantity', 'riesgo', 'action'])
             ->make(true);
     }
     
@@ -337,6 +416,9 @@ public function expired(Request $request)
                     }
                     return ($purchase->product ?? 'Sin nombre') . ' ' . $image;
                 })
+                ->addColumn('marca', function($purchase) {
+                    return $purchase->marca ?? 'N/A';
+                })
                 ->addColumn('municipality', function($purchase) {
                     $product = \App\Models\Product::where('purchase_id', $purchase->id)->first();
                     if (!$product) return 'N/A';
@@ -386,6 +468,31 @@ public function expired(Request $request)
                     }
                     return 'Sin fecha';
                 })
+                // NUEVOS CAMPOS AGREGADOS
+                ->addColumn('serie', function($purchase) {
+                    return $purchase->serie ?? 'N/A';
+                })
+                ->addColumn('riesgo', function($purchase) {
+                    return $purchase->riesgo ?? 'N/A';
+                })
+                ->addColumn('vida_util', function($purchase) {
+                    return $purchase->vida_util ?? 'N/A';
+                })
+                ->addColumn('registro_sanitario', function($purchase) {
+                    return $purchase->registro_sanitario ?? 'N/A';
+                })
+                ->addColumn('presentacion_comercial', function($purchase) {
+                    return $purchase->presentacion_comercial ?? 'N/A';
+                })
+                ->addColumn('forma_farmaceutica', function($purchase) {
+                    return $purchase->forma_farmaceutica ?? 'N/A';
+                })
+                ->addColumn('concentracion', function($purchase) {
+                    return $purchase->concentracion ?? 'N/A';
+                })
+                ->addColumn('unidad_medida', function($purchase) {
+                    return $purchase->unidad_medida ?? 'N/A';
+                })
                 ->rawColumns(['product', 'municipality', 'quantity'])
                 ->make(true);
                 
@@ -419,6 +526,7 @@ public function expired(Request $request)
     
     return view('admin.products.expired', compact('title', 'municipality', 'expiredStats'));
 }
+
 /**
  * Display a listing of out of stock resources.
  *
@@ -469,6 +577,9 @@ public function outstock(Request $request) {
                     
                     return $product->purchase->product . ' ' . $image;
                 })
+                ->addColumn('marca', function($product) {
+                    return $product->purchase->marca ?? 'N/A';
+                })
                 ->addColumn('municipality', function($product) {
                     $badges = [
                         'cajibio' => '<span class="badge badge-info">Cajibío</span>',
@@ -500,6 +611,31 @@ public function outstock(Request $request) {
                 ->addColumn('expiry_date', function($product) {
                     if (!$product->purchase || !$product->purchase->expiry_date) return 'N/A';
                     return date('d M, Y', strtotime($product->purchase->expiry_date));
+                })
+                // NUEVOS CAMPOS AGREGADOS
+                ->addColumn('serie', function($product) {
+                    return $product->purchase->serie ?? 'N/A';
+                })
+                ->addColumn('riesgo', function($product) {
+                    return $product->purchase->riesgo ?? 'N/A';
+                })
+                ->addColumn('vida_util', function($product) {
+                    return $product->purchase->vida_util ?? 'N/A';
+                })
+                ->addColumn('registro_sanitario', function($product) {
+                    return $product->purchase->registro_sanitario ?? 'N/A';
+                })
+                ->addColumn('presentacion_comercial', function($product) {
+                    return $product->purchase->presentacion_comercial ?? 'N/A';
+                })
+                ->addColumn('forma_farmaceutica', function($product) {
+                    return $product->purchase->forma_farmaceutica ?? 'N/A';
+                })
+                ->addColumn('concentracion', function($product) {
+                    return $product->purchase->concentracion ?? 'N/A';
+                })
+                ->addColumn('unidad_medida', function($product) {
+                    return $product->purchase->unidad_medida ?? 'N/A';
                 })
                 ->filter(function ($query) use ($request) {
                     
