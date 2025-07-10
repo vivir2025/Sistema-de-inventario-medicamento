@@ -63,8 +63,8 @@
                             <div class="form-row">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label class="small mb-1" for="company">Empresa</label>
-                                        <input class="form-control py-4" name="company" value="{{ old('company', $customer->company) }}" type="text" placeholder="Nombre de la empresa" />
+                                        <label class="small mb-1" for="company">Identificacion</label>
+                                        <input class="form-control py-4" name="company" value="{{ old('company', $customer->company) }}" type="text" placeholder="Numero de identificacion" />
                                     </div>
                                 </div>
                                 <div class="col-md-6">

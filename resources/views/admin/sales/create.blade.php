@@ -111,7 +111,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <p><strong>Teléfono:</strong> <span id="customer-phone"></span></p>
-                                        <p><strong>Empresa:</strong> <span id="customer-company"></span></p>
+                                        <p><strong>Identificaion:</strong> <span id="customer-company"></span></p>
                                     </div>
                                 </div>
                                 <p><strong>Dirección:</strong> <span id="customer-address"></span></p>

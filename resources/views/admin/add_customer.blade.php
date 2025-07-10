@@ -36,7 +36,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Empresa</label>
+                                <label>Identificacion</label>
                                 <input class="form-control" name="company" type="text" placeholder="" />
                             </div>
                         </div>

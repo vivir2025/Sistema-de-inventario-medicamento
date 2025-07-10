@@ -51,7 +51,7 @@
                             </div>
                         </div>
                         <div class="col-lg-6">
-                            <label>Empresa<span class="text-danger">*</span></label>
+                            <label>Identificación<span class="text-danger">*</span></label>
                             <input class="form-control" type="text" name="company">
                         </div>
                     </div>

@@ -84,7 +84,7 @@
                         <thead>
                             <tr>
                                 <th>Lote</th>
-                                <th>P. Act./D. Med</th>
+                                <th>P. Act./D. Med/Insumo</th>
                                 <th>Marca</th>
                                 <th>Municipio</th>
                                 <th>Categoría</th>

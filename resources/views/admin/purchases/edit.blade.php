@@ -59,7 +59,7 @@
                     <div class="row">
                         <div class="col-lg-4">
                             <div class="form-group">
-                                <label>Nombre del Medicamento<span class="text-danger">*</span></label>
+                                <label>Nombre del P.Act. - D.Med. - Insumo<span class="text-danger">*</span></label>
                                 <input class="form-control" type="text" value="{{$purchase->product}}" name="product" >
                             </div>
                         </div>

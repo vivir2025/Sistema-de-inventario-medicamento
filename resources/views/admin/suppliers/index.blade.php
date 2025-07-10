@@ -36,7 +36,7 @@
                                 <th>Teléfono</th>
                                 <th>Correo electrónico</th>
                                 <th>Dirección</th>
-                                <th>Empresa</th>
+                                <th>Identificacion</th>
                                 <th class="action-btn">Acción</th>
                             </tr>
                         </thead>

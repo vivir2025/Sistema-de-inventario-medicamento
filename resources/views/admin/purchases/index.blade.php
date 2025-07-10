@@ -117,7 +117,7 @@
                         <thead>
                             <tr>
                                 <th>Lote</th>
-                                <th>P. Act./D. Med</th>
+                                <th>P. Act./D. Med/Insumo</th>
                                 <th>Marca</th>
                                 <th>Serie</th>
                                 <th>Categoría</th>

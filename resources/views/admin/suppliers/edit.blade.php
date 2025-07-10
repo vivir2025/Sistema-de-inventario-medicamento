@@ -49,7 +49,7 @@
                             </div>
                         </div>
                         <div class="col-lg-6">
-                            <label>Empresa<span class="text-danger">*</span></label>
+                            <label>Identificacion<span class="text-danger">*</span></label>
                             <input class="form-control" type="text" value="{{$supplier->company ?? old('company')}}" name="company">
                         </div>
                     </div>

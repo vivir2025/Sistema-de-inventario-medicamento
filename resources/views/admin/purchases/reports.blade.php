@@ -31,7 +31,7 @@
                             <thead>
                                 <tr>
                                     <th>Proveedor</th>
-                                    <th>Empresa P.</th>
+                                    <th>Identificacion P.</th>
                                     <th>Email P.</th>
                                     <th>Teléfono P.</th>
                                     <th>Medicamento</th>

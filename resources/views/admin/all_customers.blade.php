@@ -32,7 +32,7 @@
                     <tr>
                         <th>Nombre</th>
                         <th>Correo Electrónico</th>
-                        <th>Empresa</th>
+                        <th>Identificación</th>
                         <th>Dirección</th>
                         <th>Teléfono</th>
                         <th>Acciones</th>

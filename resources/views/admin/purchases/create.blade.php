@@ -62,7 +62,7 @@
                         <div class="row">
                             <div class="col-lg-4">
                                 <div class="form-group">
-                                    <label>Nombre del Principio Activo o Dispositivo Medico <span class="text-danger">*</span></label>
+                                    <label>Nombre del P.Act. - D.Med. - Insumo <span class="text-danger">*</span></label>
                                     <input class="form-control" type="text" name="product" 
                                            value="{{old('product')}}" required>
                                 </div>
