@@ -276,7 +276,7 @@ class PurchaseController extends Controller
         $this->validate($request, [
             'product' => 'required|max:200',
             'category' => 'required|exists:categories,id',
-            'cost_price' => 'required|numeric|min:0.01',
+            'cost_price' => 'required|numeric|min:0.00',
             'quantity' => 'required|integer|min:1',
             'expiry_date' => 'required|date|after:today',
             'supplier' => 'required|exists:suppliers,id',
@@ -362,7 +362,7 @@ class PurchaseController extends Controller
         $this->validate($request,[
             'product'=>'required|max:200',
             'category'=>'required',
-            'cost_price'=>'required|min:1',
+            'cost_price'=>'required|min:0',
             'quantity'=>'required|min:1',
             'expiry_date'=>'required',
             'supplier'=>'required',
